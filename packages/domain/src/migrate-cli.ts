@@ -3,7 +3,7 @@ import { runMigrations } from "./drizzle/client.js";
 
 /**
  * Aplica as migrações pendentes. Idempotente (FR-032). A rotina também as
- * aplica no arranque; este comando existe para preparar o banco sem coletar.
+ * aplica na inicialização; este comando existe para preparar o banco sem coletar.
  */
 const url = process.env.DATABASE_URL;
 if (url === undefined || url.trim() === "") {
