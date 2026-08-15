@@ -4,6 +4,7 @@ export type {
   ChartSummary,
   RunwayDetails,
 } from "./aisweb-client.js";
+export { BRAZIL_COUNTRY_CODE } from "./aisweb-client.js";
 export {
   AuthenticationSourceError,
   isAuthenticationSourceError,
