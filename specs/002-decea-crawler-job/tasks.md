@@ -158,7 +158,7 @@ que cada aeródromo tem suas cartas em `airport_procedure` com `storage_key` nul
 
 ### Implementation for User Story 2
 
-- [X] T059 [P] [US2] Implementar o *diff* de procedimentos em `apps/jobs/src/jobs/decea-crawler/procedure-diff.ts` (função pura sobre listas de cartas, sem I/O), produzindo os conjuntos a gravar e a remover (research R8, depende de T056)
+- [X] T059 [P] [US2] Implementar o *diff* de procedimentos em `apps/jobs/src/jobs/decea-crawler/procedure-diff.ts` (função pura sobre listas de cartas, sem I/O), produzindo os conjuntos a serem gravados e removidos (research R8, depende de T056)
 - [X] T060 [P] [US2] Implementar `class ChartTypeAudit` em `apps/jobs/src/jobs/decea-crawler/chart-type-audit.ts` com as 13 siglas conhecidas, acumulando a distribuição de tipos e alertando os desconhecidos (FR-012, depende de T057)
 - [X] T061 [US2] Estender `ProcessAirport` em `apps/jobs/src/jobs/decea-crawler/process-airport.ts` para buscar as cartas IFR pelo `AisWebClient`, aplicar o *diff* e gravá-las na mesma transação do aeródromo, alimentando `ChartTypeAudit` (FR-011, FR-013, depende de T052, T059, T060)
 - [X] T062 [US2] Incluir cartas persistidas e alertas de tipo no resumo final de `apps/jobs/src/runtime/run-report.ts` e no progresso de `apps/jobs/src/runtime/progress-reporter.ts` (contracts/jobs-cli.md, depende de T051, T061)

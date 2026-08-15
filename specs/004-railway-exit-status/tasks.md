@@ -136,14 +136,14 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 ### Parallel Opportunities
 
 - Paralelismo é limitado: US1–US3 e seus testes tocam `exit-code.ts` / `exit-code.test.ts`.
-- Tarefas realmente paralelas ([P]): **T008** (arquivo `run-report.test.ts`, distinto) e **T010** (`README.md`, distinto). Ambas independem da edição de `exit-code.ts` e podem correr enquanto essa parte é feita.
+- Tarefas realmente paralelas ([P]): **T008** (arquivo `run-report.test.ts`, distinto) e **T010** (`README.md`, distinto). Ambas independem da edição de `exit-code.ts` e podem rodar enquanto essa parte é feita.
 
 ---
 
 ## Parallel Example
 
 ```bash
-# Enquanto a edição de exit-code.ts (US1–US3) é feita, estas correm em paralelo:
+# Enquanto a edição de exit-code.ts (US1–US3) é feita, estas rodam em paralelo:
 Task: "T008 — asserção de 'Falhas' em run-report.test.ts"
 Task: "T010 — nova tabela de códigos em apps/jobs/README.md"
 ```

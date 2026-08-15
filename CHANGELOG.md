@@ -5,6 +5,19 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+
+### Alterado
+
+- A constituição do projeto passa a exigir português do Brasil em toda comunicação escrita
+  (comentários, documentação, mensagens de commit, PRs e specs), mantendo o código em inglês.
+  Acrescenta também duas regras de commit: mensagem de linha única, sem corpo nem rodapés, e
+  proibição de atribuir autoria ou coautoria a modelos de IA.
+- Resíduos de português europeu revisados na documentação e em comentários de código. A passagem
+  da 0.2.1 não cobria as specs em `specs/` nem os textos escritos depois dela: "artefactos" vira
+  "artefatos", "registo" vira "registro", "corre/correm" viram "roda/rodam", "está a ser repetido"
+  vira "está sendo repetido" e "deteção" vira "detecção". Nenhuma mudança de comportamento.
+
 ## [0.3.0] - 2026-08-15
 
 A primeira interface de leitura do acervo: uma API REST que publica em HTTP o catálogo de

@@ -189,9 +189,9 @@ main.ts                        Entrypoint: analisa argumentos e trata sinais
 | Peça | Responsabilidade |
 | ---- | ---------------- |
 | `main.ts` | Analisa argumentos (commander), registra os handlers de sinal, mapeia o resultado para código de saída |
-| `composition-root.ts` | **Único** ponto que instancia classes concretas; cria e fecha o pool da banco de dados e o cliente S3 |
+| `composition-root.ts` | **Único** ponto que instancia classes concretas; cria e fecha o pool do banco de dados e o cliente S3 |
 | `runtime/job.ts` | A interface `Job` — o contrato de uma rotina |
-| `runtime/job-registry.ts` | Registo nome → rotina, com rejeição de nome duplicado |
+| `runtime/job-registry.ts` | Registro nome → rotina, com rejeição de nome duplicado |
 | `runtime/retry-policy.ts` | Repetição com *backoff* exponencial e *jitter*, distinguindo erro retentável de definitivo |
 | `runtime/run-report.ts` | Acumula sucessos, falhas e alertas; formata o resumo final |
 | `runtime/progress-reporter.ts` | Emite o progresso; o escritor de saída entra por construtor |
@@ -288,7 +288,7 @@ pnpm --filter @open-nav-charts/jobs test
 pnpm --filter @open-nav-charts/jobs test:integration
 ```
 
-Os testes de integração vivem em `tests/` e correm a rotina ponta a ponta contra banco de dados e
+Os testes de integração vivem em `tests/` e rodam a rotina ponta a ponta contra banco de dados e
 bucket reais, com a fonte externa substituída por um servidor HTTP local — o que permite exercitar
 o caminho completo sem credenciais do DECEA.
 
@@ -305,4 +305,4 @@ de I/O real e viola o Princípio IV da constituição.
 | Sai com `3` de imediato | 401/403 da fonte, ou banco de dados/bucket inacessíveis | Validar credenciais e `docker compose ps` |
 | `SignatureDoesNotMatch` no MinIO | Estilo de URL do S3 | `S3_FORCE_PATH_STYLE=true` no ambiente local |
 | Conexões esgotadas no PostgreSQL | Pool menor que a concorrência | Pool ≥ `--concurrency` |
-| A rotina não responde a `Ctrl+C` | Item em curso a terminar | Aguardar; o segundo `Ctrl+C` mata o processo sem resumo |
+| A rotina não responde a `Ctrl+C` | Item em andamento terminando | Aguardar; o segundo `Ctrl+C` mata o processo sem resumo |

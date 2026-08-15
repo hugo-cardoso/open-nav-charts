@@ -19,7 +19,7 @@ testada e demonstrada de forma independente.
 
 ## Format: `[ID] [P?] [Story] Descrição`
 
-- **[P]**: pode correr em paralelo (arquivo diferente, sem dependência pendente)
+- **[P]**: pode rodar em paralelo (arquivo diferente, sem dependência pendente)
 - **[Story]**: história a que a tarefa pertence (US1–US5)
 - Todo caminho de arquivo é relativo à raiz do repositório
 
@@ -39,10 +39,10 @@ estrutura de `specs/001-monorepo-skeleton/contracts/package-structure.md`.
 - [X] T001 Criar `apps/api/package.json` como aplicação (sem `exports`, `main` ou `types`), com `name` `@open-nav-charts/api`, `private: true`, `type: "module"`, `engines.node: "22.x"`, `bin` apontando para `./dist/main.js`, os scripts obrigatórios (`build`, `typecheck`, `test`, `test:watch`, `test:coverage`, `test:integration`, `start`, `prestart`) e as dependências `@open-nav-charts/domain` e `@open-nav-charts/object-storage` por `workspace:*`
 - [X] T002 [P] Criar `apps/api/tsconfig.json` estendendo `../../tsconfig.base.json` com `outDir: "dist"` e `rootDir: "src"`, e `apps/api/tsconfig.test.json` estendendo o anterior com `noEmit` e `rootDir: "."`, espelhando `apps/jobs/`
 - [X] T003 [P] Criar `apps/api/vitest.config.ts` reexportando `../../vitest.shared.js` via `mergeConfig`, e `apps/api/vitest.integration.config.ts` com `include: ["tests/**/*.integration.test.ts"]`, `fileParallelism: false` e tempos limite de 180 s, espelhando `apps/jobs/`
-- [X] T004 Instalar as dependências de produção do app em `apps/api/package.json` — `express@^5.2`, `zod@^4.4`, `helmet`, `cors`, `express-rate-limit` — e as de desenvolvimento `supertest`, `@types/express`, `@types/supertest`, `@types/cors`, e correr `pnpm install` na raiz
+- [X] T004 Instalar as dependências de produção do app em `apps/api/package.json` — `express@^5.2`, `zod@^4.4`, `helmet`, `cors`, `express-rate-limit` — e as de desenvolvimento `supertest`, `@types/express`, `@types/supertest`, `@types/cors`, e rodar `pnpm install` na raiz
 - [X] T005 Adicionar `@aws-sdk/s3-request-presigner@^3.1111.0` às dependências de `packages/object-storage/package.json`, fixando a mesma linha de versão do `@aws-sdk/client-s3` já presente
 
-**Checkpoint**: `pnpm --filter @open-nav-charts/api build` corre sem erro sobre um `src/` vazio.
+**Checkpoint**: `pnpm --filter @open-nav-charts/api build` roda sem erro sobre um `src/` vazio.
 
 ---
 
@@ -205,7 +205,7 @@ disparar requisições acima do limite.
 - **Setup (Fase 1)**: sem dependências.
 - **Foundational (Fase 2)**: depende do Setup. **Bloqueia todas as histórias** — as extensões
   de `domain` e `object-storage` são capacidades que hoje não existem.
-- **Histórias (Fases 3–7)**: dependem da Fase 2. Podem então correr em paralelo.
+- **Histórias (Fases 3–7)**: dependem da Fase 2. Podem então rodar em paralelo.
 - **Polish (Fase 8)**: depende das histórias que se quer entregar.
 
 ### Dependências entre histórias
@@ -256,7 +256,7 @@ Task: "T028 Conversores de resposta em apps/api/src/presentation/responses.ts"
 ### MVP primeiro
 
 1. Fase 1 (Setup) → Fase 2 (Foundational) → Fase 3 (US1).
-2. **Parar e validar**: correr os cenários C1, C2 e C3 do quickstart.
+2. **Parar e validar**: rodar os cenários C1, C2 e C3 do quickstart.
 3. A listagem de aeródromos já sustenta uma tela de busca — é demonstrável sozinha.
 
 ### Entrega incremental
