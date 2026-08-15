@@ -1,5 +1,19 @@
 <!--
-Sync Impact Report
+Sync Impact Report — 1.1.0 (emenda de 2026-08-14)
+- Version change: 1.0.0 → 1.1.0 (MINOR: expansão material de orientação)
+- Modified principles: nenhum princípio alterado
+- Added sections:
+  - "Fluxo de Desenvolvimento" → subseção "Ramificação (GitFlow)": adota o modelo GitFlow,
+    fixa `main` e `develop` como permanentes e define os prefixos `feature/*`, `release/*`
+    e `hotfix/*` com origem, destino e regra de remoção após merge.
+- Restructured sections:
+  - "Fluxo de Desenvolvimento": conteúdo anterior agrupado sob a subseção "Commits e revisão",
+    sem alteração de texto ou de obrigações.
+- Removed sections: none
+- Deferred TODOs: none
+- Migração: branch `develop` criada a partir de `main`; nenhuma alteração de código exigida.
+
+Sync Impact Report — 1.0.0 (adoção inicial)
 - Version change: (unset template) → 1.0.0
 - Ratification type: initial adoption; all template placeholders replaced with concrete rules.
 - Modified principles:
@@ -121,6 +135,34 @@ entre ferramentas concorrentes e mantém o diff focado em mudanças de comportam
 
 ## Fluxo de Desenvolvimento
 
+### Ramificação (GitFlow)
+
+O repositório MUST seguir o modelo GitFlow. Duas branches são permanentes e MUST NOT ser
+excluídas ou reescritas:
+
+- `main` — reflete exclusivamente o que está em produção. Recebe merge apenas de `release/*`
+  e `hotfix/*`; commits diretos MUST NOT ser feitos nela.
+- `develop` — linha de integração do trabalho concluído. É a base de toda branch de feature e
+  o destino padrão dos respectivos merges.
+
+As demais branches são temporárias, MUST seguir o padrão de nome abaixo e MUST ser removidas
+após o merge:
+
+| Prefixo | Origem | Destino | Propósito |
+|---------|--------|---------|-----------|
+| `feature/*` | `develop` | `develop` | Nova funcionalidade ou alteração corrente |
+| `release/*` | `develop` | `main` e `develop` | Estabilização e preparo de versão |
+| `hotfix/*` | `main` | `main` e `develop` | Correção urgente em produção |
+
+- O sufixo de uma `feature/*` SHOULD identificar a feature do Spec Kit correspondente,
+  preservando seu prefixo numérico. Exemplo: `feature/001-monorepo-skeleton`.
+- Merges de `release/*` e `hotfix/*` MUST ser aplicados em `main` **e** em `develop`, para que
+  nenhuma correção se perca na próxima integração.
+- Branches de longa duração fora deste modelo MUST NOT ser criadas sem emenda a esta
+  constituição.
+
+### Commits e revisão
+
 - **Commits**: MUST seguir Conventional Commits (`tipo(escopo): descrição`). A descrição
   MUST ser escrita em português do Brasil. O escopo SHOULD identificar o pacote do
   workspace afetado. Exemplo: `feat(charts): adiciona eixo logaritmico ao grafico de linha`.
@@ -148,4 +190,4 @@ documento do repositório, esta constituição vence.
 - **Exceções**: MUST ser documentadas no plano da feature correspondente, com escopo e
   prazo definidos. Exceções não documentadas são violações.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14

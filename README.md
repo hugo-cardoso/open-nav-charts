@@ -96,6 +96,9 @@ A superfície pública de um pacote é exatamente o que está declarado no campo
 
 ## Convenções
 
+- **Branches**: GitFlow. `main` é produção e `develop` é a linha de integração; trabalho novo
+  sai de `develop` numa branch `feature/<nome>` e volta para lá. `release/*` sai de `develop`
+  e `hotfix/*` sai de `main` — ambas entram em `main` **e** em `develop`.
 - **Commits**: Conventional Commits com descrição em português — `feat(core): adiciona projeção mercator`
 - **Testes**: Vitest, ficheiros `*.test.ts` ao lado do código que cobrem
 - **Estilo**: aplicado por Biome; não formate à mão contra a configuração

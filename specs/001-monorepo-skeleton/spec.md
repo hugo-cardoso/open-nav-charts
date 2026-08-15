@@ -1,6 +1,6 @@
 # Feature Specification: Esqueleto do Monorepo
 
-**Feature Branch**: `001-monorepo-skeleton`
+**Feature Branch**: `feature/001-monorepo-skeleton`
 
 **Created**: 2026-08-14
 

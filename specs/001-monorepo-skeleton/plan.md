@@ -1,6 +1,6 @@
 # Implementation Plan: Esqueleto do Monorepo
 
-**Branch**: `001-monorepo-skeleton` | **Date**: 2026-08-14 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feature/001-monorepo-skeleton` | **Date**: 2026-08-14 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `/specs/001-monorepo-skeleton/spec.md`
 
