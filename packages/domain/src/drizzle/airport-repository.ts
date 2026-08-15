@@ -1,8 +1,8 @@
-import { eq, inArray, sql } from "drizzle-orm";
-import type { Airport } from "../entities/index.js";
-import type { AirportRepository } from "../repositories/index.js";
+import { and, asc, count, eq, inArray, like, type SQL, sql } from "drizzle-orm";
+import type { Airport, AirportSummary } from "../entities/index.js";
+import type { AirportListQuery, AirportPage, AirportRepository } from "../repositories/index.js";
 import type { DrizzleClient } from "./client.js";
-import { fromCoordinate, toAirport } from "./mappers.js";
+import { fromCoordinate, normalizeSearchText, toAirport, toAirportSummary } from "./mappers.js";
 import { airport, airportRunway } from "./schema.js";
 
 /** Transação do Drizzle ou o próprio cliente — ambos aceitam as mesmas queries. */
@@ -20,6 +20,9 @@ export async function saveAirportWith(executor: Executor, entity: Airport): Prom
     state: entity.state,
     latitude: fromCoordinate(entity.latitude),
     longitude: fromCoordinate(entity.longitude),
+    // Coluna comum, não gerada: quem grava preenche. Toda escrita de aeródromo
+    // passa por aqui, então a rotina de coleta continua inalterada (research R5).
+    searchText: normalizeSearchText(`${entity.icao} ${entity.name} ${entity.city ?? ""}`),
   };
 
   await executor
@@ -33,6 +36,7 @@ export async function saveAirportWith(executor: Executor, entity: Airport): Prom
         state: values.state,
         latitude: values.latitude,
         longitude: values.longitude,
+        searchText: values.searchText,
         updatedAt: sql`now()`,
       },
     });
@@ -99,6 +103,44 @@ export class DrizzleAirportRepository implements AirportRepository {
         runways.filter((runway) => runway.airportIcao === row.icao),
       ),
     );
+  }
+
+  /**
+   * Ordenação por `icao`: chave primária, portanto única e total. É o que garante
+   * que percorrer todas as páginas devolva cada aeródromo exatamente uma vez
+   * (FR-007, SC-008) — ordenar por nome, que não é único, não garantiria.
+   *
+   * Não carrega pistas (FR-008): uma consulta a `airport`, sem o segundo `select`
+   * nem o agrupamento em memória que `listByState` faz.
+   */
+  async list(query: AirportListQuery): Promise<AirportPage> {
+    const filters: SQL[] = [];
+    if (query.state !== undefined) {
+      filters.push(eq(airport.state, query.state));
+    }
+    if (query.search !== undefined) {
+      // O termo já chega normalizado; `search_text` foi gravada com a mesma
+      // função, então a comparação é acento-insensível dos dois lados.
+      filters.push(like(airport.searchText, `%${query.search}%`));
+    }
+    const where = filters.length === 0 ? undefined : and(...filters);
+
+    const rows = await this.db
+      .select()
+      .from(airport)
+      .where(where)
+      .orderBy(asc(airport.icao))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    // Contagem separada: `count(*) over ()` faria o Postgres recalcular o total
+    // em cada linha da página, sem ganho nesta escala (research R4).
+    const totals = await this.db.select({ value: count() }).from(airport).where(where);
+
+    return {
+      items: rows.map((row): AirportSummary => toAirportSummary(row)),
+      total: totals[0]?.value ?? 0,
+    };
   }
 
   async save(entity: Airport): Promise<void> {

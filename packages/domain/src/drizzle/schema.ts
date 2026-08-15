@@ -19,10 +19,19 @@ export const airport = pgTable(
     state: char("state", { length: 2 }),
     latitude: numeric("latitude", { precision: 9, scale: 6 }),
     longitude: numeric("longitude", { precision: 9, scale: 6 }),
+    /**
+     * ICAO, nome e cidade concatenados e normalizados, para a busca insensível a
+     * caixa e a acentuação. Detalhe de persistência: nunca entra na entidade
+     * `Airport` nem é serializado.
+     */
+    searchText: text("search_text"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("airport_state_idx").on(table.state)],
+  (table) => [
+    index("airport_state_idx").on(table.state),
+    index("airport_search_text_idx").on(table.searchText),
+  ],
 );
 
 export const airportRunway = pgTable(

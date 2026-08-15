@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
@@ -21,6 +22,12 @@ export interface Database {
   readonly airports: AirportRepository;
   readonly procedures: AirportProcedureRepository;
   readonly sync: AirportSyncRepository;
+  /**
+   * Verificação de conectividade para o indicador de saúde. Rejeita quando o
+   * banco não responde; existe para que o consumidor não precise emitir SQL —
+   * o driver não vaza deste pacote.
+   */
+  ping(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -47,6 +54,9 @@ export function createDatabase(config: DatabaseConfig): Database {
     airports: new DrizzleAirportRepository(db),
     procedures: new DrizzleAirportProcedureRepository(db),
     sync: new DrizzleAirportSyncRepository(db),
+    ping: async () => {
+      await db.execute(sql`select 1`);
+    },
     close: () => pool.end(),
   };
 }

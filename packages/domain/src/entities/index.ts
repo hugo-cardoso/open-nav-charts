@@ -19,6 +19,13 @@ export interface Airport {
   readonly runways: readonly AirportRunway[];
 }
 
+/**
+ * Aeródromo sem as pistas. Torna explícito em tempo de compilação que a listagem
+ * paginada não as carrega, em vez de devolver `Airport` com um array vazio
+ * ambíguo.
+ */
+export type AirportSummary = Omit<Airport, "runways">;
+
 export interface AirportProcedure {
   readonly id: string;
   readonly airportIcao: string;
