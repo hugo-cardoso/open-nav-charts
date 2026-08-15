@@ -232,6 +232,53 @@ describe("extensões de consulta (integração)", () => {
     it("resolve com o banco disponível", async () => {
       await expect(database.ping()).resolves.toBeUndefined();
     });
+
+    it("sobrevive à queda de uma conexão ociosa em vez de derrubar o processo", async () => {
+      // Regressão: sem listener de `error` no pool, o `terminating connection due
+      // to administrator command` que o PostgreSQL envia ao reiniciar vira um
+      // evento não tratado e mata o processo inteiro — a API precisa continuar no
+      // ar e voltar a responder.
+      const poolErrors: Error[] = [];
+      const isolated = createDatabase({
+        url: container.getConnectionUri(),
+        onPoolError: (error) => poolErrors.push(error),
+      });
+
+      try {
+        await isolated.ping();
+
+        // Derruba as conexões ociosas pelo lado do servidor, como faz um reinício.
+        const admin = new pg.Pool({ connectionString: container.getConnectionUri() });
+        try {
+          await admin.query(
+            "select pg_terminate_backend(pid) from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and state = 'idle'",
+          );
+        } finally {
+          await admin.end();
+        }
+
+        // Dá tempo de o socket morto ser notado enquanto a conexão está ociosa —
+        // é aí que o pool emite `error`, o evento que sem listener mata o
+        // processo.
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        // Conforme o momento, a falha aparece no evento do pool ou na própria
+        // query; qualquer um serve, desde que o processo continue vivo e a
+        // tentativa seguinte abra conexão nova e volte a passar. Uma rejeição
+        // isolada é exatamente o `503 degraded` que a saúde deve reportar.
+        const first = await isolated.ping().then(
+          () => "ok",
+          () => "falhou",
+        );
+        await expect(isolated.ping()).resolves.toBeUndefined();
+
+        // Ao menos um dos dois caminhos precisa ter observado a queda; se nenhum
+        // observou, o teste não exercitou o cenário e deixaria de proteger nada.
+        expect(poolErrors.length > 0 || first === "falhou").toBe(true);
+      } finally {
+        await isolated.close();
+      }
+    });
   });
 
   describe("backfill da migração", () => {

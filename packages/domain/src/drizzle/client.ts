@@ -16,6 +16,12 @@ import * as schema from "./schema.js";
 export interface DatabaseConfig {
   readonly url: string;
   readonly maxConnections?: number;
+  /**
+   * Notificado quando uma conexão ociosa do pool falha (por exemplo, o servidor
+   * foi reiniciado). O pool se recupera sozinho; isto existe só para o chamador
+   * registrar a ocorrência.
+   */
+  readonly onPoolError?: (error: Error) => void;
 }
 
 export interface Database {
@@ -48,6 +54,16 @@ export function createDatabase(config: DatabaseConfig): Database {
     connectionString: config.url,
     ...(config.maxConnections === undefined ? {} : { max: config.maxConnections }),
   });
+
+  // Sem este listener, uma conexão ociosa derrubada pelo servidor — reinício do
+  // PostgreSQL, `terminating connection due to administrator command` — emite um
+  // `error` não tratado no pool e mata o processo inteiro. Um serviço de longa
+  // duração precisa sobreviver a isso e voltar a responder quando o banco
+  // retornar; o pool descarta a conexão quebrada e abre outra na próxima query.
+  pool.on("error", (error) => {
+    config.onPoolError?.(error);
+  });
+
   const db = drizzle(pool, { schema });
 
   return {
