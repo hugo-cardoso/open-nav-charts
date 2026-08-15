@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aisweb>
+  <AeroCode>SBSP</AeroCode>
+  <name><![CDATA[Congonhas]]></name>
+  <city><![CDATA[São Paulo]]></city>
+  <uf>SP</uf>
+  <latRotaer>23 37 34S</latRotaer>
+  <lngRotaer>046 39 22W</lngRotaer>
+  <type>AD</type>
+  <runways count="1">
+    <runway compl="">
+      <type>RWY</type>
+      <ident>17R/35L</ident>
+      <length compl="">1940</length>
+      <width compl="">45</width>
+    </runway>
+  </runways>
+</aisweb>

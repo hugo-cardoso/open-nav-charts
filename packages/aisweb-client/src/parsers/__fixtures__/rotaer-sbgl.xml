@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aisweb>
+  <AeroCode>SBGL</AeroCode>
+  <name><![CDATA[Galeão - Antônio Carlos Jobim]]></name>
+  <city><![CDATA[Rio de Janeiro]]></city>
+  <uf>RJ</uf>
+  <lat>-22.81</lat>
+  <lng>-43.250555555556</lng>
+  <latRotaer>22 48 36S</latRotaer>
+  <lngRotaer>043 15 02W</lngRotaer>
+  <type>AD</type>
+  <altM>8.8</altM>
+  <altFt>29</altFt>
+  <runways count="2">
+    <runway compl="">
+      <type>RWY</type>
+      <ident>10/28</ident>
+      <surface compl="">CONC</surface>
+      <length compl="">4000</length>
+      <width compl="">45</width>
+      <surface_c compl="">78/R/A/W/T</surface_c>
+    </runway>
+    <runway compl="">
+      <type>RWY</type>
+      <ident>15/33</ident>
+      <surface compl="">ASPH</surface>
+      <length compl="">3180</length>
+      <width compl="">47</width>
+      <surface_c compl="">65/F/A/X/T</surface_c>
+    </runway>
+  </runways>
+</aisweb>

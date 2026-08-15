@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Caso real observado na coleta de 2026-08-15 (SNAO, SNCW, SSNG, SSWN): a fonte
+  publica a mesma pista duas vezes, uma delas com dimensões claramente erradas
+  (24x24 m para uma pista de 1295 m). Sem deduplicação, a segunda inserção viola
+  o unique (airport_icao, ident) e derruba o aeródromo inteiro.
+-->
+<aisweb>
+  <AeroCode>SNAO</AeroCode>
+  <name><![CDATA[Aeroporto de Amarante]]></name>
+  <city><![CDATA[Amarante]]></city>
+  <uf>PI</uf>
+  <lat>-6.24</lat>
+  <lng>-42.85</lng>
+  <type>AD</type>
+  <runways count="2">
+    <runway compl="">
+      <type>RWY</type>
+      <ident>09/27</ident>
+      <length compl="">24</length>
+      <width compl="">24</width>
+    </runway>
+    <runway compl="">
+      <type>RWY</type>
+      <ident>09/27</ident>
+      <length compl="">1295</length>
+      <width compl="">28</width>
+    </runway>
+  </runways>
+</aisweb>
