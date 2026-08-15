@@ -40,6 +40,7 @@ export function createChartStorage(config: S3Config): ManagedChartStorage {
     exists: (key) => storage.exists(key),
     put: (key, content) => storage.put(key, content),
     delete: (key) => storage.delete(key),
+    presignGetUrl: (key, expiresInSeconds) => storage.presignGetUrl(key, expiresInSeconds),
     close: () => client.destroy(),
   };
 }
