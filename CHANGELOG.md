@@ -5,6 +5,65 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-08-15
+
+A primeira interface de leitura do acervo: uma API REST que publica em HTTP o catálogo de
+aeródromos e as cartas IFR que a rotina `decea-crawler` já coletava.
+
+### Adicionado
+
+- `@open-nav-charts/api` (`apps/api`): API REST somente leitura sobre o acervo, em Express 5.
+  Seis endpoints — catálogo paginado com filtro por unidade federativa e busca textual
+  (`GET /v1/airports`), detalhe do aeródromo com pistas (`GET /v1/airports/:icao`), relação de
+  procedimentos (`GET /v1/airports/:icao/procedures`), acesso ao PDF da carta
+  (`GET /v1/airports/:icao/procedures/:id/chart`), indicador de saúde (`GET /health`) e o
+  contrato publicado (`GET /docs`). Nenhuma rota de escrita e nenhuma autenticação.
+- A rota da carta **não transporta o documento**: responde `302` para uma URL pré-assinada do
+  bucket, válida por 5 minutos e gerada a cada requisição. A assinatura é local, então o custo
+  de servir uma carta independe do tamanho do PDF.
+- Busca insensível a maiúsculas **e a acentuação**: "galeao", "Galeao" e "GALEÃO" encontram
+  "Galeão". A normalização é feita em JavaScript e gravada na coluna `search_text`, sem exigir
+  extensão do PostgreSQL nem privilégio de `CREATE EXTENSION`.
+- Envelope de erro único em toda falha — `{ "error": { "code", "message" } }` — com código
+  estável legível por máquina e mensagem em português do Brasil. Distingue casos que o
+  consumidor precisa separar: formato de ICAO inválido (`400`) de ICAO inexistente (`404`), e
+  procedimento sem documento (`CHART_NOT_AVAILABLE`) de procedimento de outro aeródromo
+  (`PROCEDURE_NOT_FOUND`).
+- Borda com `helmet`, CORS liberado para leitura pública e limitação de 120 requisições por
+  minuto e por IP, com `Retry-After`. O `/health` fica isento, para que a verificação não seja
+  bloqueada por tráfego de consumidores.
+- Encerramento ordenado em `SIGTERM`/`SIGINT`: conclui as requisições em curso, com limite de
+  10 segundos, e só então fecha o pool do banco e o cliente S3.
+- `@open-nav-charts/domain`: listagem paginada com filtro e busca (`AirportRepository.list`),
+  resolução de procedimento por id (`AirportProcedureRepository.findById`) e verificação de
+  conectividade (`Database.ping`). Migração aditiva `0001` acrescenta a coluna `search_text`,
+  com backfill do acervo existente.
+- `@open-nav-charts/object-storage`: `presignGetUrl` no contrato `ChartStorage`. O SDK do S3
+  continua confinado ao pacote — a API recebe a interface e nunca vê `@aws-sdk`.
+- Variáveis `API_PORT` e `API_LOG_LEVEL`, ambas com padrão. As credenciais da AISWEB **não**
+  são lidas pela API.
+
+### Corrigido
+
+- Uma conexão ociosa derrubada pelo servidor — o que o PostgreSQL faz ao reiniciar, com
+  `terminating connection due to administrator command` — emitia um evento `error` não tratado
+  no pool e matava o processo inteiro. Um serviço de longa duração precisa sobreviver a isso:
+  agora o pool descarta a conexão quebrada, a saúde reporta `503 degraded` enquanto o banco
+  está fora e volta sozinha a `200` quando ele retorna.
+
+### Notas
+
+- A rotina `decea-crawler` **não foi alterada**. A coluna `search_text` é preenchida por baixo,
+  na mesma função por onde toda escrita de aeródromo já passava.
+- Validado contra o acervo real a 2026-08-15: 4439 aeródromos e as 43 cartas de SBGL coletadas
+  do DECEA. O redirect entregou o PDF de 791 KB sem que os bytes atravessassem a aplicação, e o
+  bucket rejeita com `403` uma assinatura adulterada.
+- Latência medida com 5000 aeródromos: p95 de 0,7 ms na primeira página e 2,0 ms na busca — três
+  ordens de grandeza abaixo do alvo de 500 ms. A adoção de `pg_trgm`, prevista como contingência,
+  não foi necessária.
+- O limitador de taxa guarda o estado em memória, por processo. Com mais de uma instância o
+  limite efetivo se multiplica; é aceito nesta entrega, que pressupõe instância única.
+
 ## [0.2.1] - 2026-08-15
 
 ### Alterado
