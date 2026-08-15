@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aisweb>
+  <rotaer total="4550">
+    <item>
+      <AeroCode>SBGR</AeroCode>
+      <name><![CDATA[Guarulhos - Governador André Franco Montoro]]></name>
+      <type>AD</type>
+    </item>
+    <item>
+      <AeroCode>SBSP</AeroCode>
+      <name><![CDATA[Congonhas]]></name>
+      <type>AD</type>
+    </item>
+    <item>
+      <AeroCode>SBGL</AeroCode>
+      <name><![CDATA[Galeão - Antônio Carlos Jobim]]></name>
+      <type>AD</type>
+    </item>
+  </rotaer>
+</aisweb>

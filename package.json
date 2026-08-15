@@ -1,6 +1,6 @@
 {
   "name": "open-nav-charts-v2",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.9.0",
@@ -14,6 +14,7 @@
     "format": "biome format --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:integration": "pnpm -r test:integration",
     "test:watch": "pnpm -r --parallel test:watch",
     "test:coverage": "pnpm -r test:coverage",
     "build": "pnpm -r build",
@@ -21,9 +22,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
+    "@testcontainers/postgresql": "^11.14.0",
     "@types/node": "^22",
+    "@types/pg": "^8.21.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "drizzle-kit": "^0.31.10",
     "only-allow": "^1.2.2",
+    "testcontainers": "^11.14.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
