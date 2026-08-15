@@ -6,6 +6,7 @@ export interface AirportListCriteria {
   readonly page: number;
   readonly pageSize: number;
   readonly state?: string | undefined;
+  readonly country?: string | undefined;
   readonly search?: string | undefined;
 }
 
@@ -34,6 +35,7 @@ export class AirportService {
       page: criteria.page,
       pageSize: criteria.pageSize,
       state: criteria.state?.toUpperCase(),
+      country: criteria.country?.toUpperCase(),
       search: criteria.search === undefined ? undefined : normalizeSearchText(criteria.search),
     });
   }

@@ -17,13 +17,22 @@ export interface RunwayResponse {
   readonly widthMeters: number | null;
 }
 
+/**
+ * Localização do aeródromo agrupada. O país é o código ISO 3166-1 alpha-2 como
+ * gravado, sem tradução para nome por extenso (FR-010).
+ */
+export interface AirportLocationResponse {
+  readonly city: string | null;
+  readonly state: string | null;
+  readonly country: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+}
+
 export interface AirportSummaryResponse {
   readonly icao: string;
   readonly name: string;
-  readonly city: string | null;
-  readonly state: string | null;
-  readonly latitude: number | null;
-  readonly longitude: number | null;
+  readonly location: AirportLocationResponse;
 }
 
 export interface AirportDetailResponse extends AirportSummaryResponse {
@@ -53,16 +62,21 @@ export interface CollectionResponse<T> {
 
 /**
  * Campos ausentes saem como `null` explícito, nunca omitidos: o consumidor
- * distingue "sem valor" de "campo que a API deixou de enviar".
+ * distingue "sem valor" de "campo que a API deixou de enviar". O objeto
+ * `location` está sempre presente, ainda que todos os seus campos sejam nulos
+ * (FR-012) — assim o consumidor nunca precisa checar a existência da chave.
  */
 export function toAirportSummaryResponse(airport: AirportSummary): AirportSummaryResponse {
   return {
     icao: airport.icao,
     name: airport.name,
-    city: airport.city,
-    state: airport.state,
-    latitude: airport.latitude,
-    longitude: airport.longitude,
+    location: {
+      city: airport.city,
+      state: airport.state,
+      country: airport.country,
+      latitude: airport.latitude,
+      longitude: airport.longitude,
+    },
   };
 }
 

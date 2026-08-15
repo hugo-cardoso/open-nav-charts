@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { parseIcao, parsePagination, parseSearch, parseState } from "../http/validation.js";
+import {
+  parseCountry,
+  parseIcao,
+  parsePagination,
+  parseSearch,
+  parseState,
+} from "../http/validation.js";
 import {
   toAirportDetailResponse,
   toAirportSummaryResponse,
@@ -23,9 +29,10 @@ export function createAirportsRouter(options: AirportsRouterOptions): Router {
     // Toda validação antes de tocar o acervo (FR-027).
     const { page, pageSize } = parsePagination(request.query);
     const state = parseState(request.query.state);
+    const country = parseCountry(request.query.country);
     const search = parseSearch(request.query.search);
 
-    const result = await options.service.list({ page, pageSize, state, search });
+    const result = await options.service.list({ page, pageSize, state, country, search });
 
     response.json(
       toPageResponse(result.items.map(toAirportSummaryResponse), page, pageSize, result.total),

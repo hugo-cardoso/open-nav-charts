@@ -17,6 +17,9 @@ export const airport = pgTable(
     name: text("name").notNull(),
     city: text("city"),
     state: char("state", { length: 2 }),
+    /** Código ISO 3166-1 alpha-2, sempre em caixa alta. Anulável: registros de
+     * procedência desconhecida permanecem válidos. */
+    country: char("country", { length: 2 }),
     latitude: numeric("latitude", { precision: 9, scale: 6 }),
     longitude: numeric("longitude", { precision: 9, scale: 6 }),
     /**
@@ -30,6 +33,7 @@ export const airport = pgTable(
   },
   (table) => [
     index("airport_state_idx").on(table.state),
+    index("airport_country_idx").on(table.country),
     index("airport_search_text_idx").on(table.searchText),
   ],
 );

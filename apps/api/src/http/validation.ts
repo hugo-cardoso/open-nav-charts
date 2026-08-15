@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  InvalidCountryError,
   InvalidIcaoError,
   InvalidPaginationError,
   InvalidProcedureIdError,
@@ -33,6 +34,18 @@ const procedureIdSchema = z
   .refine((value) => !/\p{Cc}/u.test(value));
 
 const stateSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]{2}$/)
+  .transform((value) => value.toUpperCase());
+
+/**
+ * Mesma forma de `stateSchema`: o código ISO alpha-2 também são duas letras
+ * insensíveis a caixa. A validação é de formato apenas — um código bem formado
+ * porém não atribuído (`XX`) é aceito e devolve lista vazia, porque manter a
+ * tabela ISO embutida custaria versioná-la sem ganho funcional (FR-019).
+ */
+const countrySchema = z
   .string()
   .trim()
   .regex(/^[A-Za-z]{2}$/)
@@ -100,6 +113,17 @@ export function parseState(value: unknown): string | undefined {
   const parsed = stateSchema.safeParse(value);
   if (!parsed.success) {
     throw new InvalidStateError();
+  }
+  return parsed.data;
+}
+
+export function parseCountry(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = countrySchema.safeParse(value);
+  if (!parsed.success) {
+    throw new InvalidCountryError();
   }
   return parsed.data;
 }

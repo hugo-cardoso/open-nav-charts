@@ -1,3 +1,11 @@
+/**
+ * País de todo aeródromo publicado por esta fonte, em ISO 3166-1 alpha-2. O valor
+ * é uma propriedade da fonte, não do domínio: é `BR` porque o DECEA cobre
+ * exclusivamente o Brasil, e outra fonte traria outro código. A fonte não informa
+ * o país em nenhum campo, então ele é atribuído aqui (research R3).
+ */
+export const BRAZIL_COUNTRY_CODE = "BR";
+
 export interface RunwayDetails {
   readonly ident: string;
   readonly lengthMeters: number | null;

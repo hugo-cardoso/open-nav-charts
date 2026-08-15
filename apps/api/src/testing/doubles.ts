@@ -50,6 +50,9 @@ export class FakeAirportRepository implements AirportRepository {
 
     const matching = [...this.airports.values()]
       .filter((entity) => query.state === undefined || entity.state === query.state)
+      // Aeródromo sem país nunca entra no resultado de um filtro de país
+      // (FR-022): a comparação por igualdade já exclui `null`.
+      .filter((entity) => query.country === undefined || entity.country === query.country)
       .filter((entity) => {
         if (query.search === undefined) {
           return true;
@@ -174,6 +177,7 @@ export function airport(overrides: Partial<Airport> & Pick<Airport, "icao">): Ai
     name: `Aeródromo ${overrides.icao}`,
     city: "Cidade",
     state: "RJ",
+    country: "BR",
     latitude: -22.809999,
     longitude: -43.250556,
     runways: [],

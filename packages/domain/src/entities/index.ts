@@ -14,6 +14,9 @@ export interface Airport {
   readonly name: string;
   readonly city: string | null;
   readonly state: string | null;
+  /** Código ISO 3166-1 alpha-2, em caixa alta. `null` em registro de procedência
+   * não registrada. */
+  readonly country: string | null;
   readonly latitude: number | null;
   readonly longitude: number | null;
   readonly runways: readonly AirportRunway[];
