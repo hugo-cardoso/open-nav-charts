@@ -5,10 +5,23 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.4.0] - 2026-08-15
+
+A rotina passa a sinalizar seu desfecho de forma que um agendador externo entenda: só falha o que
+exige intervenção no ambiente.
 
 ### Alterado
 
+- **BREAKING** — Código de saída da CLI `open-nav-charts-jobs`: uma execução concluída **com
+  falhas de itens** agora sai com `0` (sucesso), e não mais com `1`. O código `1` passa a
+  significar exclusivamente **erro inesperado**. A motivação é o painel do agendador (Railway),
+  que só distingue sucesso de falha: uma carta indisponível na fonte marcava a rotina inteira como
+  falha, escondendo os problemas que realmente exigem ação. Os itens que falharam continuam
+  visíveis no resumo final e nos logs.
+  - **Impacto**: quem lê o código de saída para detectar "houve alguma falha de item" precisa
+    passar a ler o resumo da execução. A tabela completa está em `apps/jobs/README.md`.
+  - Os demais códigos não mudam: `2` configuração ou rotina inexistente, `3` dependência
+    indisponível, `130` interrompida por sinal.
 - A constituição do projeto passa a exigir português do Brasil em toda comunicação escrita
   (comentários, documentação, mensagens de commit, PRs e specs), mantendo o código em inglês.
   Acrescenta também duas regras de commit: mensagem de linha única, sem corpo nem rodapés, e
