@@ -1,0 +1,39 @@
+{
+  "name": "@open-nav-charts/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "bin": {
+    "open-nav-charts-api": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "prestart": "pnpm build"
+  },
+  "dependencies": {
+    "@open-nav-charts/domain": "workspace:*",
+    "@open-nav-charts/object-storage": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^5.2.0",
+    "express-rate-limit": "^8.4.0",
+    "helmet": "^8.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^11.14.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
+    "testcontainers": "^11.14.0"
+  }
+}

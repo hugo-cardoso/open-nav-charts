@@ -1,9 +1,11 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { ChartStorage } from "./chart-storage.js";
 import { assertPdfContent } from "./pdf-content.js";
 
@@ -57,6 +59,18 @@ export class S3ChartStorage implements ChartStorage {
 
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  /**
+   * Assinatura SigV4 calculada localmente sobre a chave e as credenciais: é o que
+   * torna o custo de servir uma carta independente do tamanho do PDF (research
+   * R2). O objeto não é lido nem verificado aqui — a URL é gerada mesmo para
+   * chave inexistente, e nesse caso é o bucket que responde ao consumidor.
+   */
+  async presignGetUrl(key: string, expiresInSeconds: number): Promise<string> {
+    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+      expiresIn: expiresInSeconds,
+    });
   }
 }
 

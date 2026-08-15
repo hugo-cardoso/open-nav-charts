@@ -55,15 +55,17 @@ pnpm --filter @open-nav-charts/<nome> build
 
 ```text
 apps/
-└── jobs/                 @open-nav-charts/jobs — host de rotinas operacionais (CLI)
+├── jobs/                 @open-nav-charts/jobs — host de rotinas operacionais (CLI)
+└── api/                  @open-nav-charts/api — API REST somente leitura do acervo (Express)
 packages/
 ├── domain/               @open-nav-charts/domain — entidades e persistência (Drizzle + PostgreSQL)
 ├── aisweb-client/        @open-nav-charts/aisweb-client — cliente da API AISWEB do DECEA
 └── object-storage/       @open-nav-charts/object-storage — bucket compatível com S3
 ```
 
-`domain` é o único pacote que a futura API REST vai consumir: nem o cliente do DECEA nem o
-bucket de escrita fazem parte da superfície que ela precisa.
+A API REST consome dois pacotes: `domain`, para ler o acervo, e `object-storage`, para assinar
+a URL temporária do PDF na rota da carta — a assinatura precisa do cliente S3, que por decisão
+de encapsulamento não sai desse pacote. O cliente do DECEA fica fora da sua superfície.
 
 A configuração é herdada de cima para baixo, nunca lateralmente entre pacotes:
 
@@ -110,9 +112,13 @@ têm de ser preenchidas — são pedidas no portal do DECEA.
 | `S3_SECRET_ACCESS_KEY` | `minioadmin` | Credencial do bucket |
 | `S3_BUCKET` | `onc-charts` | Nome do bucket |
 | `S3_FORCE_PATH_STYLE` | `true` local / `false` Railway | Estilo de URL do S3 |
+| `API_PORT` | `3000` | Porta de escuta da API REST — opcional, padrão `3000` |
+| `API_LOG_LEVEL` | `info` | Verbosidade dos logs da API — opcional, padrão `info` |
 
-Todas são obrigatórias. Se faltar alguma, a rotina termina antes de coletar seja o que for,
-listando **todas** as que faltam de uma vez. O arquivo `.env` nunca é versionado.
+Todas as da rotina são obrigatórias. Se faltar alguma, a rotina termina antes de coletar seja o
+que for, listando **todas** as que faltam de uma vez. O arquivo `.env` nunca é versionado. As
+duas últimas pertencem apenas à API REST e têm padrão; as credenciais da AISWEB, por sua vez,
+não são lidas pela API.
 
 ### 3. Executar a rotina
 
@@ -169,6 +175,46 @@ MinIO em <http://localhost:9001>.
 docker compose down     # mantém os dados
 docker compose down -v  # apaga banco de dados e bucket
 ```
+
+## API REST
+
+`apps/api` publica o acervo em HTTP, **somente leitura**: nenhuma rota de escrita e nenhuma
+autenticação. Quem alimenta o acervo é a rotina de coleta acima.
+
+### Subir
+
+```bash
+pnpm --filter @open-nav-charts/api start
+```
+
+Usa `DATABASE_URL` e as variáveis `S3_*` do `.env`, mais `API_PORT` e `API_LOG_LEVEL`. Faltando
+variável obrigatória, o processo não sobe e lista **todas** as ausências de uma vez. Em
+`SIGTERM`/`SIGINT` as requisições em curso terminam antes do encerramento.
+
+As migrações **não** são aplicadas pela API — aplique-as pela rotina de coleta ou por
+`pnpm --filter @open-nav-charts/domain migrate`.
+
+### Endpoints
+
+| Rota | O que devolve |
+| ---- | ------------- |
+| `GET /v1/airports` | Catálogo paginado; `page`, `pageSize` (máx. 100), `state`, `search` |
+| `GET /v1/airports/:icao` | Detalhe do aeródromo, com as pistas |
+| `GET /v1/airports/:icao/procedures` | Cartas do aeródromo, com `hasChart`; filtro `type` |
+| `GET /v1/airports/:icao/procedures/:id/chart` | `302` para o PDF em URL assinada, válida por 5 min |
+| `GET /health` | `200` `ok` / `503` `degraded`; fora da limitação de taxa |
+| `GET /docs` | O contrato completo, em JSON |
+
+```bash
+curl -s "http://localhost:3000/v1/airports?search=galeao" | jq   # busca ignora acento e caixa
+curl -s "http://localhost:3000/v1/airports/sbgl" | jq            # ICAO em qualquer caixa
+curl -sL "http://localhost:3000/v1/airports/SBGL/procedures/<id>/chart" -o carta.pdf
+```
+
+A rota da carta **não** transporta o PDF: ela devolve `302` para uma URL assinada do bucket, o
+que torna o custo de servir uma carta independente do tamanho do arquivo. Toda falha responde no
+mesmo envelope `{ "error": { "code", "message" } }`, com limite de 120 requisições por minuto e
+por IP.
 
 ## Criar um pacote novo
 

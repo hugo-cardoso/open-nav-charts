@@ -142,6 +142,11 @@ export class FakeChartStorage implements ChartStorage {
     this.deletedKeys.push(key);
     this.objects.delete(key);
   }
+
+  /** A rotina de coleta não assina URLs; existe só para cumprir o contrato. */
+  async presignGetUrl(key: string, expiresInSeconds: number): Promise<string> {
+    return `https://bucket.example/${key}?expires=${expiresInSeconds}`;
+  }
 }
 
 export class RecordingProgressReporter implements ProgressReporter {

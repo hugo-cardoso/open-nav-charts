@@ -1,4 +1,9 @@
-import type { Airport, AirportProcedure, AirportRunway } from "../entities/index.js";
+import type {
+  Airport,
+  AirportProcedure,
+  AirportRunway,
+  AirportSummary,
+} from "../entities/index.js";
 
 /**
  * Conversões entre linha do banco e entidade. Funções puras sem I/O — a exceção
@@ -45,13 +50,20 @@ function toCoordinate(value: string | null): number | null {
 
 export function toAirport(row: AirportRow, runways: readonly RunwayRow[]): Airport {
   return {
+    ...toAirportSummary(row),
+    runways: runways.map(toRunway),
+  };
+}
+
+/** Projeção da listagem: os mesmos campos, sem a consulta às pistas (FR-008). */
+export function toAirportSummary(row: AirportRow): AirportSummary {
+  return {
     icao: row.icao,
     name: row.name,
     city: row.city,
     state: row.state,
     latitude: toCoordinate(row.latitude),
     longitude: toCoordinate(row.longitude),
-    runways: runways.map(toRunway),
   };
 }
 
@@ -79,4 +91,17 @@ export function toProcedure(row: ProcedureRow): AirportProcedure {
 /** `numeric` é gravado como string; `null` quando a coordenada não veio. */
 export function fromCoordinate(value: number | null): string | null {
   return value === null ? null : value.toFixed(6);
+}
+
+/**
+ * Normalização usada pela busca textual: a mesma função corre na escrita, ao
+ * preencher `search_text`, e na leitura, sobre o termo pesquisado. Se as duas
+ * divergissem, quem digita sem acento não encontraria o registro acentuado
+ * (research R5).
+ */
+export function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 }
