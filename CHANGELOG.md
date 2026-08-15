@@ -5,6 +5,17 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.2.1] - 2026-08-15
+
+### Alterado
+
+- Toda a documentação, comentários de código e descrições de teste passam a usar português do
+  Brasil. Parte do texto herdado da versão 0.1.0 estava em português europeu, e os textos escritos
+  na 0.2.0 seguiram essa variante por consistência local. Nenhuma mudança de comportamento:
+  apenas vocabulário e construções ("arquivo" no lugar de "ficheiro", "executar" no lugar de
+  "correr", "gerenciador" no lugar de "gestor", "banco de dados" no lugar de "base de dados",
+  entre outros).
+
 ## [0.2.0] - 2026-08-15
 
 O primeiro código de produção do repositório: um host de rotinas operacionais e a rotina que
