@@ -1,0 +1,30 @@
+{
+  "name": "open-nav-charts-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.9.0",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "preinstall": "only-allow pnpm",
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r --parallel test:watch",
+    "test:coverage": "pnpm -r test:coverage",
+    "build": "pnpm -r build",
+    "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
+    "@types/node": "^22",
+    "@vitest/coverage-v8": "^4.1.10",
+    "only-allow": "^1.2.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
