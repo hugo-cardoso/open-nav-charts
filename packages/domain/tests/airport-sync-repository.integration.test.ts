@@ -9,6 +9,7 @@ const airport: Airport = {
   name: "Galeão - Antônio Carlos Jobim",
   city: "Rio de Janeiro",
   state: "RJ",
+  country: "BR",
   latitude: -22.81,
   longitude: -43.250556,
   runways: [{ ident: "10/28", lengthMeters: 4000, widthMeters: 45 }],

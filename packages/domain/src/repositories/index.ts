@@ -16,6 +16,8 @@ export interface AirportListQuery {
   readonly pageSize: number;
   /** Duas letras maiúsculas quando presente. */
   readonly state?: string | undefined;
+  /** Código ISO 3166-1 alpha-2: duas letras maiúsculas quando presente. */
+  readonly country?: string | undefined;
   /** Termo já normalizado por `normalizeSearchText`, não vazio. */
   readonly search?: string | undefined;
 }

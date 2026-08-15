@@ -224,6 +224,7 @@ describe("decea-crawler (integração ponta a ponta)", () => {
 
     const airport = await database.airports.findByIcao("SBGL");
     expect(airport?.name).toBe("Aeródromo SBGL — Ação");
+    expect(airport?.country).toBe("BR");
     expect(airport?.latitude).toBeCloseTo(-22.81, 6);
     expect(airport?.runways).toEqual([{ ident: "10/28", lengthMeters: 4000, widthMeters: 45 }]);
 
@@ -244,6 +245,13 @@ describe("decea-crawler (integração ponta a ponta)", () => {
     expect(report.totals.documentsArchived).toBe(0);
     expect(report.totals.documentsAlreadyPresent).toBe(1);
     expect(await database.procedures.listByAirport("SBGR")).toHaveLength(1);
+    // Reprocessar reescreve o mesmo país, sem duplicar o registro (FR-004). O
+    // ICAO é a chave primária, então uma única linha por aeródromo é o próprio
+    // enunciado da idempotência.
+    expect((await database.airports.findByIcao("SBGR"))?.country).toBe("BR");
+    expect(
+      (await database.airports.listByState("SP")).filter((item) => item.icao === "SBGR"),
+    ).toHaveLength(1);
   });
 
   it("remove do banco e do bucket a carta que saiu de vigência", async () => {

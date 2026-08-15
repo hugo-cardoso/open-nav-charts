@@ -1,4 +1,9 @@
-import type { AirportDetails, AisWebClient, ChartSummary } from "@open-nav-charts/aisweb-client";
+import {
+  type AirportDetails,
+  type AisWebClient,
+  BRAZIL_COUNTRY_CODE,
+  type ChartSummary,
+} from "@open-nav-charts/aisweb-client";
 import type { Airport, AirportProcedure, AirportSyncRepository } from "@open-nav-charts/domain";
 import type { AirportOutcome, RunReport } from "../../runtime/run-report.js";
 import type { ChartArchiver } from "./chart-archiver.js";
@@ -92,6 +97,9 @@ export class ProcessAirport {
       name: details.name,
       city: details.city,
       state: details.state,
+      // Fora de qualquer condicional: a fonte cobre só o Brasil, então o país é
+      // conhecido mesmo quando cidade, UF e coordenadas faltam (FR-005).
+      country: BRAZIL_COUNTRY_CODE,
       latitude: hasCoordinates ? details.latitude : null,
       longitude: hasCoordinates ? details.longitude : null,
       runways: details.runways.map((runway) => ({

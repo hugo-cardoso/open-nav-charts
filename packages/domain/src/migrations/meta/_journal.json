@@ -15,6 +15,13 @@
       "when": 1786774628757,
       "tag": "0001_neat_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786822008418,
+      "tag": "0002_curly_havok",
+      "breakpoints": true
     }
   ]
 }

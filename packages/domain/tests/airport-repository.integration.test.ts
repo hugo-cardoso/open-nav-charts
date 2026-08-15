@@ -41,6 +41,7 @@ describe("DrizzleAirportRepository (integração)", () => {
       name: "Galeão - Antônio Carlos Jobim",
       city: "Rio de Janeiro",
       state: "RJ",
+      country: "BR",
       latitude: -22.81,
       longitude: -43.250556,
       runways: [{ ident: "10/28", lengthMeters: 4000, widthMeters: 45 }],
@@ -110,6 +111,7 @@ describe("DrizzleAirportRepository (integração)", () => {
       name: "Fazenda Sem Cadastro",
       city: null,
       state: null,
+      country: null,
       latitude: null,
       longitude: null,
       runways: [],
@@ -119,8 +121,27 @@ describe("DrizzleAirportRepository (integração)", () => {
 
     expect(found?.city).toBeNull();
     expect(found?.state).toBeNull();
+    expect(found?.country).toBeNull();
     expect(found?.latitude).toBeNull();
     expect(found?.runways).toEqual([]);
+  });
+
+  it("faz o round-trip do país: grava o código e o devolve na leitura", async () => {
+    await database.airports.save(airport());
+
+    const found = await database.airports.findByIcao("SBGL");
+
+    expect(found?.country).toBe("BR");
+  });
+
+  it("reescreve o país no upsert, sem duplicar o registro", async () => {
+    await database.airports.save(airport({ country: "BR" }));
+    await database.airports.save(airport({ country: "PT" }));
+
+    const found = await database.airports.findByIcao("SBGL");
+
+    expect(found?.country).toBe("PT");
+    expect(await database.airports.listByState("RJ")).toHaveLength(1);
   });
 
   it("lista por UF trazendo as pistas de cada aeródromo", async () => {

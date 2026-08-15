@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   "INVALID_PROCEDURE_ID",
   "INVALID_PAGINATION",
   "INVALID_STATE",
+  "INVALID_COUNTRY",
   "INVALID_SEARCH",
   "INVALID_PROCEDURE_TYPE",
   "AIRPORT_NOT_FOUND",
@@ -73,6 +74,15 @@ export class InvalidStateError extends ApiError {
   override readonly status = 400;
 
   constructor(message = "A unidade federativa deve ter exatamente 2 letras.") {
+    super(message);
+  }
+}
+
+export class InvalidCountryError extends ApiError {
+  override readonly code = "INVALID_COUNTRY";
+  override readonly status = 400;
+
+  constructor(message = "O país deve ser um código de 2 letras (ISO 3166-1 alpha-2).") {
     super(message);
   }
 }

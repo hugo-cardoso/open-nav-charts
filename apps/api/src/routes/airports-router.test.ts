@@ -96,6 +96,22 @@ describe("GET /v1/airports", () => {
     expect(JSON.stringify(response.body)).not.toContain("runways");
   });
 
+  it("cada item traz location, sem os campos planos (FR-007, FR-009)", async () => {
+    const response = await request(appWith([airport({ icao: "SBGL" })])).get("/v1/airports");
+
+    const item = response.body.items[0];
+    expect(item.location).toEqual({
+      city: "Cidade",
+      state: "RJ",
+      country: "BR",
+      latitude: -22.809999,
+      longitude: -43.250556,
+    });
+    for (const field of ["city", "state", "country", "latitude", "longitude"]) {
+      expect(item).not.toHaveProperty(field);
+    }
+  });
+
   it("filtra por unidade federativa, insensível a caixa (FR-005)", async () => {
     const response = await request(appWith(catalog)).get("/v1/airports?state=rj");
 
@@ -146,6 +162,37 @@ describe("GET /v1/airports", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("INVALID_STATE");
+  });
+
+  it("filtra por país, insensível a caixa (FR-014, FR-016)", async () => {
+    const app = appWith([
+      airport({ icao: "SBGL", country: "BR" }),
+      airport({ icao: "LPPT", country: "PT" }),
+      airport({ icao: "SWXX", country: null }),
+    ]);
+
+    for (const value of ["BR", "br", " br "]) {
+      const response = await request(app).get(`/v1/airports?country=${encodeURIComponent(value)}`);
+      expect(response.body.items.map((item: { icao: string }) => item.icao)).toEqual(["SBGL"]);
+      expect(response.body.total).toBe(1);
+    }
+  });
+
+  it("responde 200 com lista vazia para país sem correspondência (FR-021)", async () => {
+    const response = await request(appWith(catalog)).get("/v1/airports?country=XX");
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toEqual([]);
+    expect(response.body.total).toBe(0);
+  });
+
+  it("recusa country fora do formato com 400 INVALID_COUNTRY (FR-018)", async () => {
+    for (const value of ["Brazil", "BRA", "B", "B1"]) {
+      const response = await request(appWith(catalog)).get(`/v1/airports?country=${value}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("INVALID_COUNTRY");
+    }
   });
 
   it("recusa search vazia ou longa demais com 400 INVALID_SEARCH", async () => {
@@ -199,20 +246,43 @@ describe("GET /v1/airports/:icao", () => {
     expect(response.body.runways).toEqual([]);
   });
 
-  it("coordenadas ausentes vêm como null explícito", async () => {
+  it("coordenadas ausentes vêm como null explícito dentro de location", async () => {
     const response = await request(
       appWith([
-        airport({ icao: "SBGL", latitude: null, longitude: null, city: null, state: null }),
+        airport({
+          icao: "SBGL",
+          latitude: null,
+          longitude: null,
+          city: null,
+          state: null,
+          country: null,
+        }),
       ]),
     ).get("/v1/airports/SBGL");
 
-    expect(response.body).toMatchObject({
-      latitude: null,
-      longitude: null,
+    expect(response.body.location).toEqual({
       city: null,
       state: null,
+      country: null,
+      latitude: null,
+      longitude: null,
     });
-    expect(Object.keys(response.body)).toContain("latitude");
+    expect(Object.keys(response.body.location)).toContain("latitude");
+  });
+
+  it("agrupa a localização em location, fora do nível superior (FR-007, FR-009)", async () => {
+    const response = await request(appWith([airport({ icao: "SBGL" })])).get("/v1/airports/SBGL");
+
+    expect(response.body.location).toEqual({
+      city: "Cidade",
+      state: "RJ",
+      country: "BR",
+      latitude: -22.809999,
+      longitude: -43.250556,
+    });
+    for (const field of ["city", "state", "country", "latitude", "longitude"]) {
+      expect(response.body).not.toHaveProperty(field);
+    }
   });
 
   it("recusa ICAO malformado com 400 INVALID_ICAO", async () => {

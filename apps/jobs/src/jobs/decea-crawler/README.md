@@ -110,7 +110,7 @@ sincronia após uma falha coletiva.
 
 | Tabela | Conteúdo | Chave |
 | ------ | -------- | ----- |
-| `airport` | ICAO, nome, cidade, UF, latitude, longitude | `icao` |
+| `airport` | ICAO, nome, cidade, UF, país, latitude, longitude | `icao` |
 | `airport_runway` | Designação da pista, comprimento e largura em metros | `(airport_icao, ident)` único |
 | `airport_procedure` | Id, nome, tipo, emenda, URL de origem, chave no bucket | `id` |
 
@@ -123,6 +123,12 @@ persistido com o que há e a ausência entra nos alertas do resumo. Já `name` a
 aeródromo falho — sem nome o registro não serve para nada.
 
 Latitude e longitude são gravadas **juntas ou nenhuma**: meia coordenada é inútil.
+
+**O país é gravado como código ISO 3166-1 alpha-2** (`BR`), sempre em caixa alta. A fonte não o
+informa em campo nenhum: o valor vem da constante `BRAZIL_COUNTRY_CODE` do pacote
+`@open-nav-charts/aisweb-client`, porque é uma propriedade da própria fonte — o DECEA cobre
+exclusivamente o Brasil, e outra fonte traria outro código. Diferente de cidade, UF e coordenadas,
+o país não depende de nada vir preenchido: é gravado em toda coleta, sem condicional.
 
 Aeródromos **nunca são removidos** por esta rotina. A AISWEB não publica lista de aeródromos
 extintos, e apagar por ausência arriscaria destruir dados após uma coleta parcial.

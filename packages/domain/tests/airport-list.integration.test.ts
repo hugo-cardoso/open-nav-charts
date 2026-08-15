@@ -38,6 +38,7 @@ describe("extensões de consulta (integração)", () => {
       name: `Aeródromo ${overrides.icao}`,
       city: "Cidade",
       state: "RJ",
+      country: "BR",
       latitude: -22.81,
       longitude: -43.250556,
       runways: [],
@@ -158,6 +159,66 @@ describe("extensões de consulta (integração)", () => {
 
       expect(result.items.map((item) => item.icao)).toEqual(["SBSP"]);
       expect(result.total).toBe(1);
+    });
+
+    it("filtra por país, com o total refletindo o conjunto filtrado (FR-014, FR-017)", async () => {
+      await database.airports.save(airport({ icao: "SBGL", country: "BR" }));
+      await database.airports.save(airport({ icao: "SBSP", country: "BR" }));
+      await database.airports.save(airport({ icao: "LPPT", country: "PT" }));
+
+      const brasil = await database.airports.list({ page: 1, pageSize: 20, country: "BR" });
+      const portugal = await database.airports.list({ page: 1, pageSize: 20, country: "PT" });
+
+      expect(brasil.items.map((item) => item.icao)).toEqual(["SBGL", "SBSP"]);
+      expect(brasil.total).toBe(2);
+      expect(portugal.items.map((item) => item.icao)).toEqual(["LPPT"]);
+      expect(portugal.total).toBe(1);
+    });
+
+    it("combina país, UF e busca no mesmo critério (FR-015)", async () => {
+      await database.airports.save(
+        airport({ icao: "SBGL", name: "Galeão", state: "RJ", country: "BR" }),
+      );
+      await database.airports.save(
+        airport({ icao: "SBSP", name: "Galeão do Sul", state: "SP", country: "BR" }),
+      );
+      await database.airports.save(
+        airport({ icao: "LPPT", name: "Galeão de Lisboa", state: "SP", country: "PT" }),
+      );
+
+      const result = await database.airports.list({
+        page: 1,
+        pageSize: 20,
+        country: "BR",
+        state: "SP",
+        search: normalizeSearchText("galeao"),
+      });
+
+      expect(result.items.map((item) => item.icao)).toEqual(["SBSP"]);
+      expect(result.total).toBe(1);
+    });
+
+    it("exclui do filtro de país o aeródromo sem país registrado (FR-022)", async () => {
+      await database.airports.save(airport({ icao: "SBGL", country: "BR" }));
+      await database.airports.save(airport({ icao: "SWXX", country: null }));
+
+      const filtrado = await database.airports.list({ page: 1, pageSize: 20, country: "BR" });
+      const semFiltro = await database.airports.list({ page: 1, pageSize: 20 });
+
+      expect(filtrado.items.map((item) => item.icao)).toEqual(["SBGL"]);
+      expect(filtrado.total).toBe(1);
+      // Sem o filtro, o registro sem país continua no acervo — ele só não casa
+      // com nenhum código.
+      expect(semFiltro.total).toBe(2);
+    });
+
+    it("devolve lista vazia e total zero para país sem correspondência (FR-021)", async () => {
+      await database.airports.save(airport({ icao: "SBGL", country: "BR" }));
+
+      const result = await database.airports.list({ page: 1, pageSize: 20, country: "XX" });
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it("não carrega pistas na listagem (FR-008)", async () => {
@@ -307,6 +368,26 @@ describe("extensões de consulta (integração)", () => {
         expect(rows.rows[0]?.search_text).toBe(
           normalizeSearchText("SBCF Tancredo Neves — Confins Belo Horizonte"),
         );
+      } finally {
+        await pool.end();
+      }
+    });
+
+    it("deixa a coluna country anulável, para registro de procedência desconhecida", async () => {
+      // FR-006: um `NOT NULL DEFAULT 'BR'` atribuiria nacionalidade brasileira a
+      // qualquer registro futuro de outra procedência — o oposto do que o filtro
+      // por país existe para deixar de assumir.
+      const pool = new pg.Pool({ connectionString: container.getConnectionUri() });
+      try {
+        await pool.query(
+          `insert into airport (icao, name) values ('SWZZ', 'Aeródromo Sem Procedência')`,
+        );
+
+        const rows = await pool.query<{ country: string | null }>(
+          "select country from airport where icao = 'SWZZ'",
+        );
+
+        expect(rows.rows[0]?.country).toBeNull();
       } finally {
         await pool.end();
       }
