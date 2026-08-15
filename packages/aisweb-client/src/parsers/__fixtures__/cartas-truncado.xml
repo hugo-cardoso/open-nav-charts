@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- total anuncia 5 cartas, mas só 1 item veio: resposta truncada (falha retentável). -->
+<aisweb>
+  <cartas emenda="2026-08-06" total="5">
+    <item id="e0d1c9f2-6564-4465-8f57eb1708fa53f1">
+      <id>e0d1c9f2-6564-4465-8f57eb1708fa53f1</id>
+      <tipo>IAC</tipo>
+      <nome><![CDATA[RNP Y RWY 28]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <amdt>2601A1</amdt>
+    </item>
+  </cartas>
+</aisweb>

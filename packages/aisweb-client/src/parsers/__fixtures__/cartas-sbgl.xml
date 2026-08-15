@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aisweb>
+  <cartas emenda="2026-08-06" lastupdate="{ts '2026-07-26 17:50:35'}" total="7">
+    <item id="e0d1c9f2-6564-4465-8f57eb1708fa53f1">
+      <id>e0d1c9f2-6564-4465-8f57eb1708fa53f1</id>
+      <especie>Convencionais</especie>
+      <tipo>IAC</tipo>
+      <tipo_descr>Carta de aproximação por instrumentos</tipo_descr>
+      <nome><![CDATA[RNP Y RWY 28]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=e0d1c9f2&amp;apikey=1234567890]]></link>
+      <amdt>2601A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+    <item id="11aa22bb-3344-5566-7788aa99bb00cc11">
+      <id>11aa22bb-3344-5566-7788aa99bb00cc11</id>
+      <especie>Convencionais</especie>
+      <tipo>SID</tipo>
+      <tipo_descr>Carta de saída padrão por instrumentos</tipo_descr>
+      <nome><![CDATA[GERTU 1A]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=11aa22bb&amp;apikey=1234567890]]></link>
+      <amdt>2512A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+    <item id="22bb33cc-4455-6677-8899bbaacc11dd22">
+      <id>22bb33cc-4455-6677-8899bbaacc11dd22</id>
+      <especie>Convencionais</especie>
+      <tipo>STAR</tipo>
+      <tipo_descr>Carta de chegada padrão por instrumentos</tipo_descr>
+      <nome><![CDATA[MOSTA 1A]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=22bb33cc&amp;apikey=1234567890]]></link>
+      <amdt>2512A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+    <item id="33cc44dd-5566-7788-99aabbccdd22ee33">
+      <id>33cc44dd-5566-7788-99aabbccdd22ee33</id>
+      <especie>Convencionais</especie>
+      <tipo>ADC</tipo>
+      <tipo_descr>Carta de aeródromo</tipo_descr>
+      <nome><![CDATA[ADC]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=33cc44dd&amp;apikey=1234567890]]></link>
+      <amdt>2601A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+    <item id="44dd55ee-6677-8899-aabbccddee33ff44">
+      <id>44dd55ee-6677-8899-aabbccddee33ff44</id>
+      <especie>Convencionais</especie>
+      <tipo>AOC</tipo>
+      <tipo_descr>Carta de obstáculos de aeródromo</tipo_descr>
+      <nome><![CDATA[AOC TIPO A RWY 10/28]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=44dd55ee&amp;apikey=1234567890]]></link>
+      <use>Ostensivo</use>
+    </item>
+    <item id="55ee66ff-7788-99aa-bbccddeeff44aa55">
+      <id>55ee66ff-7788-99aa-bbccddeeff44aa55</id>
+      <especie>Convencionais</especie>
+      <tipo>VAC</tipo>
+      <tipo_descr>Carta de aproximação visual</tipo_descr>
+      <nome><![CDATA[VAC]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=55ee66ff&amp;apikey=1234567890]]></link>
+      <amdt>2601A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+    <item id="66ff7700-8899-aabb-ccddeeff55bb66">
+      <id>66ff7700-8899-aabb-ccddeeff55bb66</id>
+      <especie>Convencionais</especie>
+      <tipo>PDC</tipo>
+      <tipo_descr>Carta de estacionamento e desembarque de aeronaves</tipo_descr>
+      <nome><![CDATA[PDC]]></nome>
+      <IcaoCode>SBGL</IcaoCode>
+      <link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=66ff7700&amp;apikey=1234567890]]></link>
+      <amdt>2512A1</amdt>
+      <use>Ostensivo</use>
+    </item>
+  </cartas>
+</aisweb>
