@@ -33,6 +33,7 @@ describe("API REST (integração)", () => {
       name: "Rio de Janeiro / Galeão",
       city: "Rio de Janeiro",
       state: "RJ",
+      country: "BR",
       latitude: -22.809999,
       longitude: -43.250556,
       runways: [
@@ -45,6 +46,7 @@ describe("API REST (integração)", () => {
       name: "Santos Dumont",
       city: "Rio de Janeiro",
       state: "RJ",
+      country: "BR",
       latitude: -22.910556,
       longitude: -43.163333,
       runways: [],
@@ -54,9 +56,22 @@ describe("API REST (integração)", () => {
       name: "Congonhas",
       city: "São Paulo",
       state: "SP",
+      country: "BR",
       latitude: -23.626111,
       longitude: -46.656389,
       runways: [{ ident: "17R/35L", lengthMeters: 1940, widthMeters: 45 }],
+    },
+    // Aeródromo sem nenhum dado de localização: exercita `location` sempre
+    // presente com campos nulos (FR-012) e a exclusão do filtro de país (FR-022).
+    {
+      icao: "SWXX",
+      name: "Fazenda Sem Cadastro",
+      city: null,
+      state: null,
+      country: null,
+      latitude: null,
+      longitude: null,
+      runways: [],
     },
   ];
 
@@ -129,14 +144,14 @@ describe("API REST (integração)", () => {
 
   it("percorre a listagem inteira sem repetir nem omitir (SC-008)", async () => {
     const seen: string[] = [];
-    for (let page = 1; page <= 3; page += 1) {
+    for (let page = 1; page <= 4; page += 1) {
       const response = await request(app).get(`/v1/airports?page=${page}&pageSize=1`);
       expect(response.status).toBe(200);
-      expect(response.body.total).toBe(3);
+      expect(response.body.total).toBe(4);
       seen.push(...response.body.items.map((item: { icao: string }) => item.icao));
     }
 
-    expect(seen).toEqual(["SBGL", "SBRJ", "SBSP"]);
+    expect(seen).toEqual(["SBGL", "SBRJ", "SBSP", "SWXX"]);
   });
 
   it("filtra por unidade federativa contra o banco real", async () => {
@@ -147,6 +162,65 @@ describe("API REST (integração)", () => {
       "SBRJ",
     ]);
     expect(response.body.total).toBe(2);
+  });
+
+  it("filtra por país contra o banco real, insensível a caixa (FR-014, FR-016)", async () => {
+    const maiusculas = await request(app).get("/v1/airports?country=BR");
+    const minusculas = await request(app).get("/v1/airports?country=br");
+
+    expect(maiusculas.status).toBe(200);
+    expect(maiusculas.body.items.map((item: { icao: string }) => item.icao)).toEqual([
+      "SBGL",
+      "SBRJ",
+      "SBSP",
+    ]);
+    // O aeródromo sem país registrado fica de fora do recorte (FR-022), e o
+    // total reflete só o conjunto filtrado (FR-017).
+    expect(maiusculas.body.total).toBe(3);
+    expect(minusculas.body).toEqual(maiusculas.body);
+  });
+
+  it("combina o filtro de país com UF e busca (FR-015)", async () => {
+    const comUf = await request(app).get("/v1/airports?country=BR&state=rj");
+    const comBusca = await request(app).get("/v1/airports?country=BR&search=galeao");
+
+    expect(comUf.body.items.map((item: { icao: string }) => item.icao)).toEqual(["SBGL", "SBRJ"]);
+    expect(comUf.body.total).toBe(2);
+    expect(comBusca.body.items.map((item: { icao: string }) => item.icao)).toEqual(["SBGL"]);
+  });
+
+  it("responde 200 com lista vazia para país bem formado sem correspondência (FR-019, FR-021)", async () => {
+    const response = await request(app).get("/v1/airports?country=XX");
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toEqual([]);
+    expect(response.body.total).toBe(0);
+  });
+
+  it("recusa país malformado com 400 INVALID_COUNTRY (FR-018)", async () => {
+    for (const value of ["Brazil", "BRA", "B", "B1"]) {
+      const response = await request(app).get(`/v1/airports?country=${value}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("INVALID_COUNTRY");
+      expect(response.body.error.message).toContain("2 letras");
+    }
+  });
+
+  it("publica country e INVALID_COUNTRY no contrato de /docs (FR-023, FR-024)", async () => {
+    const response = await request(app).get("/docs");
+    const listagem = response.body.endpoints.find(
+      (endpoint: { path: string }) => endpoint.path === "/v1/airports",
+    );
+    const ficha = response.body.endpoints.find(
+      (endpoint: { path: string }) => endpoint.path === "/v1/airports/:icao",
+    );
+
+    expect(listagem.query).toHaveProperty("country");
+    expect(listagem.errors).toContain("INVALID_COUNTRY");
+    expect(ficha.response).toHaveProperty("location");
+    expect(ficha.response).not.toHaveProperty("city");
+    expect(response.body.errorFormat.codes).toContain("INVALID_COUNTRY");
   });
 
   it("busca sem acento encontra o registro acentuado gravado pelo repositório", async () => {
@@ -166,7 +240,40 @@ describe("API REST (integração)", () => {
     expect(response.status).toBe(200);
     expect(response.body.name).toBe("Rio de Janeiro / Galeão");
     expect(response.body.runways).toHaveLength(2);
-    expect(response.body.latitude).toBeCloseTo(-22.809999, 6);
+    expect(response.body.location.latitude).toBeCloseTo(-22.809999, 6);
+  });
+
+  it("agrupa a localização em location nas duas rotas (FR-007, FR-008, FR-009)", async () => {
+    const detalhe = await request(app).get("/v1/airports/sbgl");
+    const listagem = await request(app).get("/v1/airports?search=galeao");
+    const item = listagem.body.items[0];
+
+    for (const body of [detalhe.body, item]) {
+      expect(body.location).toMatchObject({
+        city: "Rio de Janeiro",
+        state: "RJ",
+        country: "BR",
+      });
+      for (const field of ["city", "state", "country", "latitude", "longitude"]) {
+        expect(body).not.toHaveProperty(field);
+      }
+    }
+
+    // Listagem e ficha compartilham o mesmo objeto de localização.
+    expect(item.location).toEqual(detalhe.body.location);
+  });
+
+  it("mantém location com todos os campos nulos quando a fonte não os traz (FR-011, FR-012)", async () => {
+    const response = await request(app).get("/v1/airports/SWXX");
+
+    expect(response.status).toBe(200);
+    expect(response.body.location).toEqual({
+      city: null,
+      state: null,
+      country: null,
+      latitude: null,
+      longitude: null,
+    });
   });
 
   it("lista os procedimentos com hasChart e sem campos internos", async () => {

@@ -26,7 +26,15 @@ describe("AirportService.list", () => {
     expect(repository.listCalls[0]?.state).toBe("RJ");
   });
 
-  it("repassa undefined quando filtro e busca estão ausentes", async () => {
+  it("normaliza o país para maiúsculas antes de consultar o repositório", async () => {
+    const repository = new FakeAirportRepository();
+
+    await service(repository).list({ page: 1, pageSize: 20, country: "br" });
+
+    expect(repository.listCalls[0]?.country).toBe("BR");
+  });
+
+  it("repassa undefined quando filtros e busca estão ausentes", async () => {
     const repository = new FakeAirportRepository();
 
     await service(repository).list({ page: 2, pageSize: 50 });
@@ -35,8 +43,27 @@ describe("AirportService.list", () => {
       page: 2,
       pageSize: 50,
       state: undefined,
+      country: undefined,
       search: undefined,
     });
+  });
+
+  it("aplica país e UF juntos, recortando o catálogo por ambos", async () => {
+    const repository = new FakeAirportRepository([
+      airport({ icao: "SBGL", state: "RJ", country: "BR" }),
+      airport({ icao: "SBSP", state: "SP", country: "BR" }),
+      airport({ icao: "LPPT", state: "RJ", country: "PT" }),
+    ]);
+
+    const page = await service(repository).list({
+      page: 1,
+      pageSize: 20,
+      country: "br",
+      state: "rj",
+    });
+
+    expect(page.items.map((item) => item.icao)).toEqual(["SBGL"]);
+    expect(page.total).toBe(1);
   });
 
   it("devolve os itens e o total do repositório", async () => {

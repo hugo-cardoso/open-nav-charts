@@ -49,6 +49,11 @@ const cases: readonly {
     run: () => request(createTestApp({ airports, procedures }).app).get("/v1/airports?state=RJX"),
   },
   {
+    code: "INVALID_COUNTRY",
+    status: 400,
+    run: () => request(createTestApp({ airports, procedures }).app).get("/v1/airports?country=BRA"),
+  },
+  {
     code: "INVALID_SEARCH",
     status: 400,
     run: () => request(createTestApp({ airports, procedures }).app).get("/v1/airports?search="),

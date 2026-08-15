@@ -19,9 +19,10 @@ const DOCUMENT = {
   quickstart: [
     "1. Liste o catálogo: GET /v1/airports?pageSize=20",
     "2. Busque por nome, cidade ou ICAO, sem acento: GET /v1/airports?search=galeao",
-    "3. Abra a ficha do aeródromo: GET /v1/airports/SBGL",
-    "4. Liste as cartas: GET /v1/airports/SBGL/procedures",
-    "5. Abra a carta de um procedimento com hasChart=true: GET /v1/airports/SBGL/procedures/{id}/chart — responde 302 para o PDF.",
+    "3. Recorte por país e UF: GET /v1/airports?country=BR&state=RJ",
+    "4. Abra a ficha do aeródromo: GET /v1/airports/SBGL",
+    "5. Liste as cartas: GET /v1/airports/SBGL/procedures",
+    "6. Abra a carta de um procedimento com hasChart=true: GET /v1/airports/SBGL/procedures/{id}/chart — responde 302 para o PDF.",
   ],
   endpoints: [
     {
@@ -32,16 +33,18 @@ const DOCUMENT = {
         page: `inteiro >= 1; padrão 1`,
         pageSize: `inteiro de 1 a ${MAX_PAGE_SIZE}; padrão ${DEFAULT_PAGE_SIZE}`,
         state: "2 letras, insensível a caixa",
+        country:
+          "código ISO 3166-1 alpha-2 (2 letras), insensível a caixa; combinável com state e search",
         search: `1 a ${MAX_SEARCH_LENGTH} caracteres; casa ICAO, nome ou cidade, insensível a caixa e a acentuação`,
       },
       response: {
-        items: "lista de aeródromos sem as pistas",
+        items: "lista de { icao, name, location } — aeródromos sem as pistas",
         page: "número",
         pageSize: "número",
         total: "total do conjunto filtrado",
         hasNext: "page * pageSize < total",
       },
-      errors: ["INVALID_PAGINATION", "INVALID_STATE", "INVALID_SEARCH"],
+      errors: ["INVALID_PAGINATION", "INVALID_STATE", "INVALID_COUNTRY", "INVALID_SEARCH"],
     },
     {
       method: "GET",
@@ -51,10 +54,8 @@ const DOCUMENT = {
       response: {
         icao: "string",
         name: "string",
-        city: "string | null",
-        state: "string | null",
-        latitude: "número | null",
-        longitude: "número | null",
+        location:
+          "objeto sempre presente com { city, state, country, latitude, longitude }; campo sem valor vem como null explícito. country é o código ISO 3166-1 alpha-2, sem tradução",
         runways: "lista de { ident, lengthMeters, widthMeters }",
       },
       errors: ["INVALID_ICAO", "AIRPORT_NOT_FOUND"],

@@ -14,6 +14,7 @@ function airport(overrides: Partial<Airport> = {}): Airport {
     name: "Rio de Janeiro / Galeão",
     city: "Rio de Janeiro",
     state: "RJ",
+    country: "BR",
     latitude: -22.809999,
     longitude: -43.250556,
     runways: [{ ident: "10/28", lengthMeters: 4000, widthMeters: 45 }],
@@ -36,33 +37,74 @@ function procedure(overrides: Partial<AirportProcedure> = {}): AirportProcedure 
 }
 
 describe("toAirportSummaryResponse", () => {
-  it("expõe os campos do catálogo, sem pistas (FR-008)", () => {
+  it("agrupa a localização em `location`, sem pistas (FR-007, FR-008)", () => {
     const { runways: _runways, ...summary } = airport();
 
     expect(toAirportSummaryResponse(summary)).toEqual({
       icao: "SBGL",
       name: "Rio de Janeiro / Galeão",
-      city: "Rio de Janeiro",
-      state: "RJ",
-      latitude: -22.809999,
-      longitude: -43.250556,
+      location: {
+        city: "Rio de Janeiro",
+        state: "RJ",
+        country: "BR",
+        latitude: -22.809999,
+        longitude: -43.250556,
+      },
     });
   });
 
-  it("emite null explícito para campos ausentes, nunca os omite", () => {
+  it("não expõe cidade, UF nem coordenadas no nível superior (FR-009)", () => {
+    const { runways: _runways, ...summary } = airport();
+
+    const body = toAirportSummaryResponse(summary);
+
+    expect(Object.keys(body)).toEqual(["icao", "name", "location"]);
+  });
+
+  it("expõe o país como código, sem tradução (FR-010)", () => {
+    const { runways: _runways, ...summary } = airport({ country: "BR" });
+
+    expect(toAirportSummaryResponse(summary).location.country).toBe("BR");
+  });
+
+  it("emite null explícito para campos ausentes, nunca os omite (FR-011)", () => {
     const { runways: _runways, ...summary } = airport({
       city: null,
       state: null,
+      country: null,
       latitude: null,
       longitude: null,
     });
 
     const body = toAirportSummaryResponse(summary);
 
-    expect(Object.keys(body)).toContain("city");
-    expect(Object.keys(body)).toContain("latitude");
-    expect(body.city).toBeNull();
-    expect(body.latitude).toBeNull();
+    expect(Object.keys(body.location)).toEqual([
+      "city",
+      "state",
+      "country",
+      "latitude",
+      "longitude",
+    ]);
+    expect(body.location.city).toBeNull();
+    expect(body.location.state).toBeNull();
+    expect(body.location.country).toBeNull();
+    expect(body.location.latitude).toBeNull();
+    expect(body.location.longitude).toBeNull();
+  });
+
+  it("mantém `location` presente mesmo com todos os campos nulos (FR-012)", () => {
+    const { runways: _runways, ...summary } = airport({
+      city: null,
+      state: null,
+      country: null,
+      latitude: null,
+      longitude: null,
+    });
+
+    const body = toAirportSummaryResponse(summary);
+
+    expect(Object.keys(body)).toContain("location");
+    expect(body.location).not.toBeNull();
   });
 });
 
@@ -75,6 +117,14 @@ describe("toAirportDetailResponse", () => {
 
   it("devolve array vazio para aeródromo sem pistas, não erro", () => {
     expect(toAirportDetailResponse(airport({ runways: [] })).runways).toEqual([]);
+  });
+
+  it("traz o mesmo `location` da listagem (FR-008)", () => {
+    const { runways: _runways, ...summary } = airport();
+
+    expect(toAirportDetailResponse(airport()).location).toEqual(
+      toAirportSummaryResponse(summary).location,
+    );
   });
 });
 
