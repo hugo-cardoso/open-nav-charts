@@ -94,7 +94,7 @@ export function fromCoordinate(value: number | null): string | null {
 }
 
 /**
- * Normalização usada pela busca textual: a mesma função corre na escrita, ao
+ * Normalização usada pela busca textual: a mesma função roda na escrita, ao
  * preencher `search_text`, e na leitura, sobre o termo pesquisado. Se as duas
  * divergissem, quem digita sem acento não encontraria o registro acentuado
  * (research R5).

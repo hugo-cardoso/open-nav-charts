@@ -20,11 +20,11 @@ describe("exitCodeForReport", () => {
     expect(exitCodeForReport(report, false)).toBe(ExitCode.Success);
   });
 
-  it("devolve 1 quando houve ao menos uma falha definitiva", () => {
+  it("devolve 0 mesmo com falhas de itens: a execução rodou e persistiu dado", () => {
     const report = new RunReport(new Date());
     report.recordFailure("SBXX", "timeout");
 
-    expect(exitCodeForReport(report, false)).toBe(ExitCode.CompletedWithFailures);
+    expect(exitCodeForReport(report, false)).toBe(ExitCode.Success);
   });
 
   it("devolve 130 quando a execução foi interrompida", () => {
@@ -73,7 +73,7 @@ describe("exitCodeForError", () => {
     );
   });
 
-  it("devolve 1 para erro não classificado", () => {
-    expect(exitCodeForError(new Error("bug"))).toBe(ExitCode.CompletedWithFailures);
+  it("devolve 1 (erro inesperado) para erro não classificado", () => {
+    expect(exitCodeForError(new Error("bug"))).toBe(ExitCode.UnexpectedError);
   });
 });

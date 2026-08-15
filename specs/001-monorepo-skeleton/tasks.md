@@ -42,9 +42,9 @@ Monorepo com duas categorias, conforme [plan.md](./plan.md):
 - [X] T002 [P] Criar `.npmrc` na raiz com `engine-strict=true` (FR-006, research D6)
 - [X] T003 Criar `package.json` na raiz: `private: true`, `type: "module"`, `packageManager: "pnpm@9.9.0"`, `engines.node: "22.x"`, e `scripts.preinstall: "npx only-allow pnpm"` (FR-007, research D6, data-model: Workspace)
 - [X] T004 Criar `pnpm-workspace.yaml` na raiz declarando os globs `packages/*` e `apps/*` (FR-001, FR-002)
-- [X] T005 Verificar que o `.gitignore` da raiz cobre a lista completa de artefactos de data-model.md (Workspace → Artefactos ignorados); ajustar apenas se faltar alguma entrada (FR-008)
+- [X] T005 Verificar que o `.gitignore` da raiz cobre a lista completa de artefatos de data-model.md (Workspace → Artefatos ignorados); ajustar apenas se faltar alguma entrada (FR-008)
 
-**Checkpoint**: `pnpm install` corre na raiz sem erro (ainda sem pacotes).
+**Checkpoint**: `pnpm install` roda na raiz sem erro (ainda sem pacotes).
 
 ---
 
@@ -75,7 +75,7 @@ reconhecidos, e gerenciadores ou runtimes não suportados são rejeitados explic
 
 ### Implementation for User Story 1
 
-- [X] T011 [P] [US1] Criar `packages/core/package.json` conforme o contrato de estrutura de pacote: nome `@open-nav-charts/core`, `private: true`, `type: "module"`, `engines.node: "22.x"`, `exports`/`main`/`types` a apontar para `dist`, `files: ["dist"]` (FR-003, FR-006, contracts/package-structure.md)
+- [X] T011 [P] [US1] Criar `packages/core/package.json` conforme o contrato de estrutura de pacote: nome `@open-nav-charts/core`, `private: true`, `type: "module"`, `engines.node: "22.x"`, `exports`/`main`/`types` apontando para `dist`, `files: ["dist"]` (FR-003, FR-006, contracts/package-structure.md)
 - [X] T012 [P] [US1] Criar `apps/cli/package.json` conforme o contrato: nome `@open-nav-charts/cli`, `private: true`, `type: "module"`, `engines.node: "22.x"`, sem `exports`/`main`/`types`, com `dependencies: { "@open-nav-charts/core": "workspace:*" }` (FR-005, contracts/package-structure.md)
 - [X] T013 [P] [US1] Criar `packages/core/src/index.ts` com uma função pura mínima e exportada, sem dependências de runtime (FR-004, research D7)
 - [X] T014 [US1] Criar `apps/cli/src/index.ts` que importa a função de `@open-nav-charts/core` pelo nome do pacote e imprime o resultado (FR-005, research D7; depende de T013)
@@ -100,7 +100,7 @@ correção as resolve.
 
 - [X] T018 [US2] Adicionar ao `package.json` da raiz os scripts `lint` (`biome ci .`), `lint:fix` (`biome check --write .`) e `format` (`biome format --write .`), conforme contracts/scripts.md (FR-009, FR-010, FR-012)
 - [X] T019 [US2] Executar `pnpm lint` e resolver todas as violações no código existente até o comando sair com código `0` (SC-005, quickstart cenário 4)
-- [X] T020 [US2] Validar deteção e correção: introduzir formatação divergente em `packages/core/src/index.ts`, confirmar que `pnpm lint` falha identificando arquivo e posição, que `pnpm lint:fix` corrige, e reverter a alteração (SC-006, quickstart cenário 5)
+- [X] T020 [US2] Validar detecção e correção: introduzir formatação divergente em `packages/core/src/index.ts`, confirmar que `pnpm lint` falha identificando arquivo e posição, que `pnpm lint:fix` corrige, e reverter a alteração (SC-006, quickstart cenário 5)
 
 **Checkpoint**: O portão de qualidade cobre o monorepo inteiro a partir de um único `biome.json`.
 
@@ -108,7 +108,7 @@ correção as resolve.
 
 ## Phase 5: User Story 3 - Executar a suíte de testes do monorepo (Priority: P2)
 
-**Goal**: Um comando único na raiz corre os testes de todos os pacotes com resultado agregado,
+**Goal**: Um comando único na raiz roda os testes de todos os pacotes com resultado agregado,
 e cada pacote é executável isoladamente.
 
 **Independent Test**: Adicionar um teste que passa e um que falha, executar a suíte na raiz e
@@ -127,7 +127,7 @@ desse escopo.
 - [X] T028 [US3] Adicionar ao `package.json` da raiz os scripts `typecheck`, `test`, `test:watch`, `test:coverage` e `build` delegando via `pnpm -r`, conforme contracts/scripts.md (FR-015, FR-017, FR-019, FR-020, research D1)
 - [X] T029 [US3] Executar `pnpm typecheck` e confirmar código de saída `0` em todos os pacotes (FR-016, quickstart cenário 6)
 - [X] T030 [US3] Executar `pnpm test` e confirmar resultado agregado dos dois pacotes com código de saída `0` (FR-017, quickstart cenário 7)
-- [X] T031 [US3] Validar execução isolada: `pnpm --filter @open-nav-charts/core test` corre apenas os testes de `packages/core` (FR-018, quickstart cenário 8)
+- [X] T031 [US3] Validar execução isolada: `pnpm --filter @open-nav-charts/core test` roda apenas os testes de `packages/core` (FR-018, quickstart cenário 8)
 - [X] T032 [US3] Validar determinismo: duas execuções consecutivas de `pnpm test` produzem totais idênticos de arquivos e testes (SC-007, quickstart cenário 9)
 - [X] T033 [US3] Executar `pnpm test:coverage` e confirmar que o relatório é gerado por pacote sem falha de threshold (FR-020, quickstart cenário 10)
 
@@ -148,7 +148,7 @@ configuração da raiz foi modificado.
 
 - [X] T034 [US4] Compilar e executar a CLI (`pnpm --filter @open-nav-charts/cli build` seguido de `node apps/cli/dist/index.js`) para provar que a dependência `workspace:*` resolve para o pacote local e não para uma versão publicada (FR-005, quickstart cenário 11)
 - [X] T035 [US4] Documentar no `README.md` da raiz o procedimento de criação de pacote novo, remetendo para o checklist de conformidade de contracts/package-structure.md (FR-025)
-- [X] T036 [US4] Validar SC-004 criando um pacote temporário `packages/exemplo` conforme o contrato, correndo `pnpm install` e os três portões, confirmando com `git status --porcelain` que nenhum arquivo de configuração da raiz mudou; remover o pacote temporário no fim (SC-004, quickstart cenário 12)
+- [X] T036 [US4] Validar SC-004 criando um pacote temporário `packages/exemplo` conforme o contrato, rodando `pnpm install` e os três portões, confirmando com `git status --porcelain` que nenhum arquivo de configuração da raiz mudou; remover o pacote temporário no fim (SC-004, quickstart cenário 12)
 
 **Checkpoint**: O esqueleto é extensível — a topologia de herança raiz→pacote está provada.
 
@@ -173,7 +173,7 @@ configuração da raiz foi modificado.
 - **Setup (Phase 1)**: Sem dependências — pode começar imediatamente
 - **Foundational (Phase 2)**: Depende do Setup — BLOQUEIA todas as histórias
 - **US1 (Phase 3)**: Depende do Foundational
-- **US2 (Phase 4)**: Depende do Foundational; na prática precisa de US1 para ter código a verificar
+- **US2 (Phase 4)**: Depende do Foundational; na prática precisa de US1 para ter código a ser verificado
 - **US3 (Phase 5)**: Depende do Foundational; precisa dos pacotes de US1
 - **US4 (Phase 6)**: Depende de US1 e US3 — valida a topologia que estas estabelecem
 - **Polish (Phase 7)**: Depende de US2 e US3, cujos scripts o agregador `check` encadeia
@@ -181,7 +181,7 @@ configuração da raiz foi modificado.
 ### Nota sobre independência das histórias
 
 Ao contrário de features de produto, estas histórias não são plenamente paralelizáveis: US2,
-US3 e US4 verificam propriedades de artefactos que US1 cria. A independência aqui é de
+US3 e US4 verificam propriedades de artefatos que US1 cria. A independência aqui é de
 **validação**, não de implementação — cada história tem um teste independente que não depende
 dos testes das outras. US2 e US3 são o par genuinamente paralelizável (ver abaixo).
 
@@ -230,7 +230,7 @@ Task: "Criar apps/cli/src/index.test.ts"
 ## Desvios registrados na implementação
 
 Duas coisas divergiram do plano durante a execução. Ambas foram resolvidas; ficam registradas
-porque alteram o que os artefactos de design descrevem.
+porque alteram o que os artefatos de design descrevem.
 
 ### 1. `check` inclui `build` antes de `typecheck`
 
