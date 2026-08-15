@@ -96,18 +96,27 @@ de uma variável, só o nome, para que credenciais não vazem em logs.
 
 ## Códigos de saída
 
-O que permite automatizar a execução sem ler a saída de texto:
+O que permite automatizar a execução sem ler a saída de texto. Um agendador que dispara a rotina
+como tarefa efêmera (ex.: cron do Railway) lê o desfecho de forma binária — `0` é sucesso, qualquer
+outro código é falha:
 
-| Código | Significado | Ação típica |
-| ------ | ----------- | ----------- |
-| `0` | Concluída sem falhas definitivas | Nada |
-| `1` | Concluída, mas com pelo menos uma falha definitiva | Ler o resumo; houve dado coletado |
-| `2` | Não arrancou: configuração ausente/inválida, ou rotina inexistente | Corrigir o `.env`; conferir o nome no `--help` |
-| `3` | Abortada: credencial da fonte rejeitada (401/403) ou dependência indisponível | Validar credenciais, banco e bucket |
-| `130` | Interrompida pelo operador (`Ctrl+C`) | Reexecutar; as gravações são idempotentes |
+| Código | Significado | O agendador vê | Ação típica |
+| ------ | ----------- | -------------- | ----------- |
+| `0` | Concluída: rodou e persistiu dado, **com ou sem** falhas de itens individuais | sucesso | Nada. Conferir a seção "Falhas" do resumo para inspecionar itens problemáticos |
+| `1` | Erro inesperado não tratado | falha | Investigar o log; é um caminho não previsto (bug) |
+| `2` | Não arrancou: configuração ausente/inválida, ou rotina inexistente | falha | Corrigir o `.env`; conferir o nome no `--help` |
+| `3` | Abortada: credencial da fonte rejeitada (401/403) ou dependência indisponível | falha | Validar credenciais, banco e bucket |
+| `130` | Interrompida pelo operador (`Ctrl+C` / `SIGTERM`) | falha | Reexecutar; as gravações são idempotentes |
 
-Separar `1` de `2`/`3` importa: `1` é um resultado **com** dado coletado, enquanto `2` e `3`
-significam que nada foi feito e a causa é de ambiente, não da fonte.
+Uma varredura de milhares de itens quase sempre tem alguma falha isolada — esse é o desfecho
+saudável da coleta, então ele sai `0` de propósito. Caso contrário, toda execução normal seria
+marcada como falha pelo agendador. A lista de itens que falharam não se perde: continua na seção
+"Falhas" do resumo, emitida inclusive quando o código é `0`.
+
+> **Mudança de contrato**: até a versão anterior, "concluída com falhas" saía com código `1`. Agora
+> esse desfecho sai `0`, e `1` passou a significar exclusivamente **erro inesperado não tratado**.
+> Automações que interpretavam `1` como "concluída com falhas" precisam ser ajustadas. Os códigos
+> `2`, `3` e `130` permanecem inalterados.
 
 ---
 

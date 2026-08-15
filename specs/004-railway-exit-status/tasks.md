@@ -32,7 +32,7 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 
 **Purpose**: Confirmar linha de base verde antes de mudar comportamento
 
-- [ ] T001 Confirmar que a suíte atual de `apps/jobs` passa antes de qualquer alteração: `pnpm --filter @open-nav-charts/jobs test` (baseline verde, para que a próxima falha de teste seja causada pela mudança e não por ruído pré-existente)
+- [X] T001 Confirmar que a suíte atual de `apps/jobs` passa antes de qualquer alteração: `pnpm --filter @open-nav-charts/jobs test` (baseline verde, para que a próxima falha de teste seja causada pela mudança e não por ruído pré-existente)
 
 ---
 
@@ -56,12 +56,12 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 
 > Escrever/ajustar o teste PRIMEIRO e confirmar que ele FALHA contra o código atual.
 
-- [ ] T002 [US1] Em `apps/jobs/src/runtime/exit-code.test.ts`, alterar o caso "devolve 1 quando houve ao menos uma falha definitiva" para esperar `ExitCode.Success` e renomeá-lo para refletir a nova regra (ex.: "devolve 0 mesmo com falhas de itens: a execução rodou"). Rodar `pnpm --filter @open-nav-charts/jobs test` e confirmar que ESTE teste falha contra o código atual.
+- [X] T002 [US1] Em `apps/jobs/src/runtime/exit-code.test.ts`, alterar o caso "devolve 1 quando houve ao menos uma falha definitiva" para esperar `ExitCode.Success` e renomeá-lo para refletir a nova regra (ex.: "devolve 0 mesmo com falhas de itens: a execução rodou"). Rodar `pnpm --filter @open-nav-charts/jobs test` e confirmar que ESTE teste falha contra o código atual.
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Em `apps/jobs/src/runtime/exit-code.ts`, alterar `exitCodeForReport` para devolver `ExitCode.Success` sempre que `interrupted === false`, removendo o ramo `report.hasFailures ? CompletedWithFailures : Success`. Manter a prioridade da interrupção (`interrupted → Interrupted`). Atualizar o comentário/JSDoc da função para descrever a nova regra.
-- [ ] T004 [US1] Rodar `pnpm --filter @open-nav-charts/jobs test` e confirmar que os casos de `exitCodeForReport` passam: relatório sem falhas → 0, relatório com falhas → 0, interrompido → 130, interrompido com falhas → 130.
+- [X] T003 [US1] Em `apps/jobs/src/runtime/exit-code.ts`, alterar `exitCodeForReport` para devolver `ExitCode.Success` sempre que `interrupted === false`, removendo o ramo `report.hasFailures ? CompletedWithFailures : Success`. Manter a prioridade da interrupção (`interrupted → Interrupted`). Atualizar o comentário/JSDoc da função para descrever a nova regra.
+- [X] T004 [US1] Rodar `pnpm --filter @open-nav-charts/jobs test` e confirmar que os casos de `exitCodeForReport` passam: relatório sem falhas → 0, relatório com falhas → 0, interrompido → 130, interrompido com falhas → 130.
 
 **Checkpoint**: US1 funcional — o desfecho central (rodou com falhas de itens) agora sinaliza sucesso.
 
@@ -75,11 +75,11 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T005 [US2] Em `apps/jobs/src/runtime/exit-code.test.ts`, confirmar que os casos existentes de `exitCodeForError` (2 para `InvalidConfigurationError` e `UnknownJobError`; 3 para `AuthenticationSourceError` e `ECONNREFUSED`; 130 para `AbortError`) continuam válidos, e ajustar o caso "devolve 1 para erro não classificado" para referenciar a nova constante `ExitCode.UnexpectedError` (mesmo valor 1). Este ajuste depende do rename em T007 — deixar a asserção pelo valor `1` até o rename e trocar para a constante junto de T007.
+- [X] T005 [US2] Em `apps/jobs/src/runtime/exit-code.test.ts`, confirmar que os casos existentes de `exitCodeForError` (2 para `InvalidConfigurationError` e `UnknownJobError`; 3 para `AuthenticationSourceError` e `ECONNREFUSED`; 130 para `AbortError`) continuam válidos, e ajustar o caso "devolve 1 para erro não classificado" para referenciar a nova constante `ExitCode.UnexpectedError` (mesmo valor 1). Este ajuste depende do rename em T007 — deixar a asserção pelo valor `1` até o rename e trocar para a constante junto de T007.
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] Nenhuma mudança de comportamento em `exitCodeForError` é necessária (os desfechos de ambiente já retornam 2/3 e o abort 130). Verificar por leitura que a alteração de US1 não afetou esse caminho e que nenhum caminho de exceção retorna `Success` (invariante INV-1/INV-2 de `contracts/exit-codes.md`).
+- [X] T006 [US2] Nenhuma mudança de comportamento em `exitCodeForError` é necessária (os desfechos de ambiente já retornam 2/3 e o abort 130). Verificar por leitura que a alteração de US1 não afetou esse caminho e que nenhum caminho de exceção retorna `Success` (invariante INV-1/INV-2 de `contracts/exit-codes.md`).
 
 **Checkpoint**: US1 + US2 — sucesso só quando rodou; toda falta de trabalho continua falha e distinta.
 
@@ -93,12 +93,12 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T007 [US3] Em `apps/jobs/src/runtime/exit-code.test.ts`, atualizar todas as referências de `ExitCode.CompletedWithFailures` para `ExitCode.UnexpectedError` (o caso de erro não classificado de T005 incluído). Confirmar que a suíte reflete a tabela de `contracts/exit-codes.md`.
-- [ ] T008 [P] [US3] Em `apps/jobs/src/runtime/run-report.test.ts`, garantir que existe (ou adicionar) uma asserção de que `RunReport.format` lista os itens falhos na seção "Falhas" quando há falhas registradas — a prova de que a informação sobrevive ao colapso de `1` em `0` (US3 AS2, FR-005). Arquivo distinto de `exit-code.test.ts`, logo paralelizável.
+- [X] T007 [US3] Em `apps/jobs/src/runtime/exit-code.test.ts`, atualizar todas as referências de `ExitCode.CompletedWithFailures` para `ExitCode.UnexpectedError` (o caso de erro não classificado de T005 incluído). Confirmar que a suíte reflete a tabela de `contracts/exit-codes.md`.
+- [X] T008 [P] [US3] Em `apps/jobs/src/runtime/run-report.test.ts`, garantir que existe (ou adicionar) uma asserção de que `RunReport.format` lista os itens falhos na seção "Falhas" quando há falhas registradas — a prova de que a informação sobrevive ao colapso de `1` em `0` (US3 AS2, FR-005). Arquivo distinto de `exit-code.test.ts`, logo paralelizável.
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Em `apps/jobs/src/runtime/exit-code.ts`, renomear a constante `ExitCode.CompletedWithFailures` para `ExitCode.UnexpectedError` (manter valor `1`), atualizar o `exitCodeForError` para retornar `ExitCode.UnexpectedError` no fallback, e ajustar o comentário do bloco `ExitCode` para descrever `1` como "erro inesperado não tratado". Confirmar via `pnpm --filter @open-nav-charts/jobs typecheck` que não há referências órfãs à constante antiga em nenhum pacote.
+- [X] T009 [US3] Em `apps/jobs/src/runtime/exit-code.ts`, renomear a constante `ExitCode.CompletedWithFailures` para `ExitCode.UnexpectedError` (manter valor `1`), atualizar o `exitCodeForError` para retornar `ExitCode.UnexpectedError` no fallback, e ajustar o comentário do bloco `ExitCode` para descrever `1` como "erro inesperado não tratado". Confirmar via `pnpm --filter @open-nav-charts/jobs typecheck` que não há referências órfãs à constante antiga em nenhum pacote.
 
 **Checkpoint**: Todas as histórias funcionais; contrato de código de saída honesto e coberto por teste.
 
@@ -108,9 +108,9 @@ Projeto único dentro do monorepo pnpm. A feature vive em `apps/jobs/`:
 
 **Purpose**: Documentação e portões de qualidade
 
-- [ ] T010 [P] Atualizar `apps/jobs/README.md`: substituir a tabela "Códigos de saída" pela nova (de `contracts/exit-codes.md`) — `0` passa a cobrir "concluída com ou sem falhas de itens", `1` vira "erro inesperado" — e acrescentar uma nota curta de **mudança de contrato** avisando que "concluída com falhas" deixou de ser `1` (FR-004a, FR-008). Ajustar também a menção a `Ctrl+C`/`130` se necessário.
-- [ ] T011 Rodar o portão completo do pacote: `pnpm --filter @open-nav-charts/jobs test`, depois `pnpm lint` e `pnpm typecheck` a partir da raiz. Todos MUST passar.
-- [ ] T012 Executar a validação manual de `quickstart.md` (verificação de `$?`) se houver ambiente com Docker + `.env` disponível; caso contrário, registrar que a cobertura ficou na camada unitária determinística.
+- [X] T010 [P] Atualizar `apps/jobs/README.md`: substituir a tabela "Códigos de saída" pela nova (de `contracts/exit-codes.md`) — `0` passa a cobrir "concluída com ou sem falhas de itens", `1` vira "erro inesperado" — e acrescentar uma nota curta de **mudança de contrato** avisando que "concluída com falhas" deixou de ser `1` (FR-004a, FR-008). Ajustar também a menção a `Ctrl+C`/`130` se necessário.
+- [X] T011 Rodar o portão completo do pacote: `pnpm --filter @open-nav-charts/jobs test`, depois `pnpm lint` e `pnpm typecheck` a partir da raiz. Todos MUST passar.
+- [X] T012 Executar a validação manual de `quickstart.md` (verificação de `$?`) se houver ambiente com Docker + `.env` disponível; caso contrário, registrar que a cobertura ficou na camada unitária determinística.
 
 ---
 
