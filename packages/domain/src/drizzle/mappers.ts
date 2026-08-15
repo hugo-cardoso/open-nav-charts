@@ -15,6 +15,7 @@ export interface AirportRow {
   readonly name: string;
   readonly city: string | null;
   readonly state: string | null;
+  readonly country: string | null;
   readonly latitude: string | null;
   readonly longitude: string | null;
 }
@@ -62,6 +63,7 @@ export function toAirportSummary(row: AirportRow): AirportSummary {
     name: row.name,
     city: row.city,
     state: row.state,
+    country: row.country,
     latitude: toCoordinate(row.latitude),
     longitude: toCoordinate(row.longitude),
   };

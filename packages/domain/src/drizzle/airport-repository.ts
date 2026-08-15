@@ -18,6 +18,7 @@ export async function saveAirportWith(executor: Executor, entity: Airport): Prom
     name: entity.name,
     city: entity.city,
     state: entity.state,
+    country: entity.country,
     latitude: fromCoordinate(entity.latitude),
     longitude: fromCoordinate(entity.longitude),
     // Coluna comum, não gerada: quem grava preenche. Toda escrita de aeródromo
@@ -34,6 +35,7 @@ export async function saveAirportWith(executor: Executor, entity: Airport): Prom
         name: values.name,
         city: values.city,
         state: values.state,
+        country: values.country,
         latitude: values.latitude,
         longitude: values.longitude,
         searchText: values.searchText,
@@ -117,6 +119,12 @@ export class DrizzleAirportRepository implements AirportRepository {
     const filters: SQL[] = [];
     if (query.state !== undefined) {
       filters.push(eq(airport.state, query.state));
+    }
+    if (query.country !== undefined) {
+      // Igualdade exata: os dois lados chegam em caixa alta, o que dispensa
+      // `lower()` e mantém `airport_country_idx` utilizável. Registro com país
+      // nulo nunca casa, que é o comportamento pedido por FR-022.
+      filters.push(eq(airport.country, query.country));
     }
     if (query.search !== undefined) {
       // O termo já chega normalizado; `search_text` foi gravada com a mesma
