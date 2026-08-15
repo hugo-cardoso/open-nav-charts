@@ -8,6 +8,7 @@ Monorepo para cartas náuticas abertas.
 | ---------- | ------ | ------------ |
 | Node.js    | 22     | `.nvmrc` e `engines.node` em cada pacote |
 | pnpm       | 9.9.0  | campo `packageManager` (via Corepack) |
+| Docker     | qualquer | Apenas para o ambiente local e os testes de integração |
 
 `pnpm` é o único gestor de pacotes suportado. `npm install` e `yarn install` são bloqueados, e
 os respetivos lockfiles não são versionados.
@@ -34,7 +35,8 @@ Todos são executados a partir da raiz e cobrem todos os pacotes do workspace.
 | `pnpm lint:fix` | Aplica as correções automatizáveis de lint e formatação |
 | `pnpm format` | Aplica apenas formatação |
 | `pnpm typecheck` | Verifica os tipos de todos os pacotes |
-| `pnpm test` | Corre a suíte de todos os pacotes |
+| `pnpm test` | Corre a suíte unitária de todos os pacotes — sem rede e sem Docker |
+| `pnpm test:integration` | Corre os testes de integração — **exige Docker** |
 | `pnpm test:watch` | Reexecuta os testes ao detetar alterações |
 | `pnpm test:coverage` | Corre os testes gerando relatório de cobertura |
 | `pnpm build` | Compila todos os pacotes, por ordem de dependência |
@@ -44,19 +46,24 @@ Antes de abrir uma alteração, corra `pnpm check`. Ele aborta no primeiro port�
 ### Trabalhar num pacote isolado
 
 ```bash
-pnpm --filter @open-nav-charts/core test
-pnpm --filter @open-nav-charts/core test:watch
-pnpm --filter @open-nav-charts/cli build
+pnpm --filter @open-nav-charts/<nome> test
+pnpm --filter @open-nav-charts/<nome> test:watch
+pnpm --filter @open-nav-charts/<nome> build
 ```
 
 ## Estrutura
 
 ```text
-packages/    Bibliotecas reutilizáveis
-  core/      @open-nav-charts/core — lógica partilhada
-apps/        Aplicações executáveis
-  cli/       @open-nav-charts/cli — interface de linha de comandos
+apps/
+└── jobs/                 @open-nav-charts/jobs — host de rotinas operacionais (CLI)
+packages/
+├── domain/               @open-nav-charts/domain — entidades e persistência (Drizzle + PostgreSQL)
+├── aisweb-client/        @open-nav-charts/aisweb-client — cliente da API AISWEB do DECEA
+└── object-storage/       @open-nav-charts/object-storage — bucket compatível com S3
 ```
+
+`domain` é o único pacote que a futura API REST vai consumir: nem o cliente do DECEA nem o
+bucket de escrita fazem parte da superfície que ela precisa.
 
 A configuração é herdada de cima para baixo, nunca lateralmente entre pacotes:
 
@@ -68,10 +75,105 @@ A configuração é herdada de cima para baixo, nunca lateralmente entre pacotes
 
 Por isso um pacote novo fica coberto pelos três portões sem alterar nada na raiz.
 
+## Ambiente local e execução da rotina de coleta
+
+A rotina `decea-crawler` coleta os aeródromos, as cartas IFR e os documentos PDF publicados pela
+API AISWEB do DECEA. Precisa de um PostgreSQL e de um bucket compatível com S3 — ambos sobem
+com um comando.
+
+### 1. Subir a infraestrutura
+
+```bash
+docker compose up -d
+```
+
+Sobe PostgreSQL 17 (porta 5432) e MinIO (API em 9000, consola em 9001, `minioadmin`/`minioadmin`),
+e cria o bucket `onc-charts`. Nada mais precisa de ser instalado na máquina.
+
+### 2. Configurar as variáveis de ambiente
+
+```bash
+cp .env.example .env
+```
+
+Os valores já apontam para os contentores acima; só as credenciais da fonte ficam em branco e
+têm de ser preenchidas — são pedidas no portal do DECEA.
+
+| Variável | Exemplo | Uso |
+| -------- | ------- | --- |
+| `AISWEB_API_KEY` | `1234567890` | Credencial da AISWEB |
+| `AISWEB_API_PASS` | `abcdef` | Credencial da AISWEB |
+| `DATABASE_URL` | `postgres://onc:onc@localhost:5432/onc` | PostgreSQL |
+| `S3_ENDPOINT` | `http://localhost:9000` | MinIO local / `https://storage.railway.app` |
+| `S3_REGION` | `us-east-1` / `auto` | Região do bucket |
+| `S3_ACCESS_KEY_ID` | `minioadmin` | Credencial do bucket |
+| `S3_SECRET_ACCESS_KEY` | `minioadmin` | Credencial do bucket |
+| `S3_BUCKET` | `onc-charts` | Nome do bucket |
+| `S3_FORCE_PATH_STYLE` | `true` local / `false` Railway | Estilo de URL do S3 |
+
+Todas são obrigatórias. Se faltar alguma, a rotina termina antes de coletar seja o que for,
+listando **todas** as que faltam de uma vez. O ficheiro `.env` nunca é versionado.
+
+### 3. Correr a rotina
+
+```bash
+pnpm --filter @open-nav-charts/jobs start decea-crawler
+```
+
+As migrações da base de dados são aplicadas automaticamente no arranque.
+
+| Opção | Padrão | Finalidade |
+| ----- | ------ | ---------- |
+| `--page-size <n>` | `100` | Tamanho da página do catálogo |
+| `--concurrency <n>` | `4` | Aeródromos processados em simultâneo |
+| `--max-attempts <n>` | `3` | Tentativas por aeródromo |
+| `--skip-documents` | desligado | Coleta metadados sem descarregar os PDFs |
+| `--only <ICAO,ICAO>` | — | Restringe a varredura aos ICAOs indicados |
+
+```bash
+# Verificação rápida contra um aeródromo conhecido
+pnpm --filter @open-nav-charts/jobs start decea-crawler --only SBGL
+
+# Apenas metadados, sem tocar no bucket
+pnpm --filter @open-nav-charts/jobs start decea-crawler --skip-documents
+```
+
+A rotina é idempotente: reexecutar não duplica aeródromos, cartas nem objetos no bucket, o que
+torna seguro interromper com `Ctrl+C` e recomeçar depois. Na interrupção nenhum aeródromo novo
+é iniciado, os em curso terminam e o resumo parcial é impresso.
+
+### Códigos de saída
+
+| Código | Significado |
+| ------ | ----------- |
+| `0` | Concluída sem falhas definitivas |
+| `1` | Concluída, mas com pelo menos uma falha definitiva |
+| `2` | Não arrancou: configuração ausente ou inválida |
+| `3` | Abortada: credencial da fonte rejeitada ou dependência indisponível |
+| `130` | Interrompida pelo operador |
+
+### Inspecionar o resultado
+
+```bash
+# Aeródromos e cartas persistidos
+docker exec -it onc-postgres psql -U onc -d onc -c "select count(*) from airport"
+docker exec -it onc-postgres psql -U onc -d onc -c "select count(*) from airport_procedure"
+```
+
+Os documentos ficam no bucket em `<ICAO>/<id da carta>.pdf` e podem ser vistos na consola do
+MinIO em <http://localhost:9001>.
+
+### Encerrar o ambiente
+
+```bash
+docker compose down     # mantém os dados
+docker compose down -v  # apaga base de dados e bucket
+```
+
 ## Criar um pacote novo
 
 1. Crie o diretório em `packages/<nome>` (biblioteca) ou `apps/<nome>` (aplicação).
-2. Copie a estrutura do pacote de referência mais próximo — `packages/core` ou `apps/cli`.
+2. Siga a estrutura descrita no contrato de pacote referenciado abaixo.
 3. Dê-lhe o nome `@open-nav-charts/<nome>`, igual ao nome do diretório.
 4. Faça o `tsconfig.json` estender `../../tsconfig.base.json` e o `vitest.config.ts` reexportar
    `../../vitest.shared.js`.
@@ -88,8 +190,8 @@ Importe sempre pelo nome do pacote, nunca por caminho relativo que atravesse a f
 workspace:
 
 ```ts
-import { formatCoordinate } from "@open-nav-charts/core"; // correto
-import { formatCoordinate } from "../../packages/core/src/index.js"; // proibido
+import { algo } from "@open-nav-charts/domain"; // correto
+import { algo } from "../../packages/domain/src/index.js"; // proibido
 ```
 
 A superfície pública de um pacote é exatamente o que está declarado no campo `exports`.
