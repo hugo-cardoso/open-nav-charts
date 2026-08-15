@@ -26,7 +26,9 @@ export async function start(
   const app = root.buildApp();
 
   const server = await new Promise<Server>((resolve, reject) => {
-    const listening = app.listen(config.server.port);
+    // Bind explícito em todas as interfaces: dentro de um contêiner, escutar
+    // apenas o loopback torna o serviço inalcançável para a verificação de saúde.
+    const listening = app.listen(config.server.port, "0.0.0.0");
     listening.once("listening", () => resolve(listening));
     listening.once("error", reject);
   });

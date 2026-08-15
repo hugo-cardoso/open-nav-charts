@@ -38,6 +38,18 @@ const booleanFromString = (name: string) =>
     })
     .transform((value) => value === "true");
 
+const port = (name: string) =>
+  z
+    .string()
+    .trim()
+    .refine(
+      (value) => {
+        const parsed = Number(value);
+        return Number.isInteger(parsed) && parsed > 0 && parsed <= 65_535;
+      },
+      { message: `${name} deve ser um inteiro entre 1 e 65535` },
+    );
+
 const schema = z.object({
   DATABASE_URL: required("DATABASE_URL").refine((value) => URL.canParse(value), {
     message: "DATABASE_URL deve ser uma URL de conexão válida",
@@ -50,18 +62,12 @@ const schema = z.object({
   S3_SECRET_ACCESS_KEY: required("S3_SECRET_ACCESS_KEY"),
   S3_BUCKET: required("S3_BUCKET"),
   S3_FORCE_PATH_STYLE: booleanFromString("S3_FORCE_PATH_STYLE"),
-  API_PORT: z
-    .string()
-    .trim()
-    .default("3000")
-    .refine(
-      (value) => {
-        const parsed = Number(value);
-        return Number.isInteger(parsed) && parsed > 0 && parsed <= 65_535;
-      },
-      { message: "API_PORT deve ser um inteiro entre 1 e 65535" },
-    )
-    .transform(Number),
+  // `PORT` é injetada pela plataforma de hospedagem e tem precedência: a
+  // verificação de saúde do Railway bate nessa porta, não na porta que o proxy
+  // público descobre sozinho. Ignorá-la faz o domínio responder enquanto o
+  // health check falha.
+  PORT: port("PORT").transform(Number).optional(),
+  API_PORT: port("API_PORT").default("3000").transform(Number),
   API_LOG_LEVEL: z
     .string()
     .trim()
@@ -92,7 +98,7 @@ export class EnvironmentConfig {
       bucket: input.S3_BUCKET,
       forcePathStyle: input.S3_FORCE_PATH_STYLE,
     };
-    this.server = { port: input.API_PORT, logLevel: input.API_LOG_LEVEL };
+    this.server = { port: input.PORT ?? input.API_PORT, logLevel: input.API_LOG_LEVEL };
   }
 
   static fromEnvironment(

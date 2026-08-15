@@ -41,6 +41,20 @@ describe("EnvironmentConfig", () => {
     expect(config.server.logLevel).toBe("info");
   });
 
+  it("prefere PORT a API_PORT — é a porta em que a plataforma verifica a saúde", () => {
+    const config = EnvironmentConfig.fromEnvironment(
+      withEnvironment({ PORT: "8080", API_PORT: "3000" }),
+    );
+
+    expect(config.server.port).toBe(8080);
+  });
+
+  it("rejeita PORT inválida em vez de cair silenciosamente em API_PORT", () => {
+    expect(() =>
+      EnvironmentConfig.fromEnvironment(withEnvironment({ PORT: "não-é-porta" })),
+    ).toThrow(InvalidConfigurationError);
+  });
+
   it("reporta todas as ausências de uma vez (FR-034)", () => {
     let message = "";
     try {

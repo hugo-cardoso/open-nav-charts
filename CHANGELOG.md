@@ -5,6 +5,22 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.5.1] - 2026-08-15
+
+A API passa a escutar na porta que a plataforma de hospedagem designa, e não em uma porta própria.
+
+### Corrigido
+
+- A verificação de saúde falhava na implantação enquanto o domínio público respondia normalmente.
+  A configuração lia apenas `API_PORT`, então a API subia na porta padrão `3000`; o roteamento
+  público descobre sozinho a porta em uso e por isso funcionava, mas a verificação de saúde bate
+  em `PORT` — a variável que a plataforma injeta — onde não havia ninguém escutando. `PORT` passa
+  a ser lida e tem precedência sobre `API_PORT`, que segue valendo para o ambiente local. Uma
+  `PORT` malformada é recusada na inicialização, em vez de silenciosamente cair no valor de
+  `API_PORT`.
+- O servidor passa a se vincular explicitamente a `0.0.0.0`. O comportamento efetivo não muda
+  — era o padrão que o Node já aplicava —, mas deixa de depender dele.
+
 ## [0.5.0] - 2026-08-15
 
 O acervo passa a registrar o país de cada aeródromo, e a API agrupa os dados de localização em um
