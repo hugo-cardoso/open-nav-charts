@@ -5,7 +5,10 @@ Todas as alterações notáveis deste projeto são registadas neste ficheiro.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.2.0] - 2026-08-15
+
+O primeiro código de produção do repositório: um host de rotinas operacionais e a rotina que
+coleta o catálogo de aeródromos e cartas IFR do DECEA.
 
 ### Adicionado
 
@@ -29,6 +32,9 @@ ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   `.env.example` com as nove variáveis documentadas.
 - `pnpm test:integration`: testes contra PostgreSQL e MinIO efémeros via Testcontainers,
   isolados do `pnpm test`, que continua a correr sem rede e sem Docker.
+- Documentação de utilização em `apps/jobs/README.md` (host, configuração, códigos de saída,
+  como acrescentar uma rotina) e em `apps/jobs/src/jobs/decea-crawler/README.md` (opções da
+  rotina, pipeline e peculiaridades da fonte).
 
 ### Removido
 
@@ -36,6 +42,20 @@ ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   (`apps/cli`). Existiam apenas para provar o esqueleto do monorepo ponta a ponta na versão
   0.1.0 e cumpriram esse propósito; nenhum código de produção dependia deles. Foram substituídos
   pelos pacotes do coletor do DECEA, listados acima.
+
+### Notas
+
+- Validado contra a AISWEB real a 2026-08-15: 4439 dos 4441 aeródromos publicados foram
+  coletados (99,95%), em 45 páginas e cerca de 10 minutos com `--skip-documents`. As duas
+  falhas são aeródromos que constam na listagem mas cujo detalhamento a fonte devolve vazio.
+- A fonte publica o tipo de carta `AGMC`, ausente das 13 siglas conhecidas da espécie IFR. As
+  cartas são persistidas na mesma e a rotina emite um alerta — a fonte é a autoridade. Convém
+  confirmar a sigla com o DECEA.
+- A fonte publica pistas repetidas em alguns aeródromos, uma das ocorrências com dimensões
+  espúrias. O coletor deduplica mantendo a de maior comprimento; sem isso, o índice único
+  `(airport_icao, ident)` derrubaria a gravação do aeródromo inteiro.
+- Correr a rotina exige credenciais da AISWEB, pedidas no portal do DECEA, e um PostgreSQL e um
+  bucket compatível com S3 — ambos sobem com `docker compose up -d`.
 
 ## [0.1.0] - 2026-08-14
 
