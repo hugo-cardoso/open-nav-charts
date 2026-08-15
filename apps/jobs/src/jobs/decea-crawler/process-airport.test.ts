@@ -1,4 +1,4 @@
-import { PermanentSourceError } from "@open-nav-charts/aisweb-client";
+import { BRAZIL_COUNTRY_CODE, PermanentSourceError } from "@open-nav-charts/aisweb-client";
 import { beforeEach, describe, expect, it } from "vitest";
 import { RunReport } from "../../runtime/run-report.js";
 import {
@@ -81,6 +81,7 @@ describe("ProcessAirport — aeródromo (US1)", () => {
       name: "Galeão - Antônio Carlos Jobim",
       city: "Rio de Janeiro",
       state: "RJ",
+      country: "BR",
       latitude: -22.81,
       longitude: -43.250556,
       runways: [
@@ -110,6 +111,8 @@ describe("ProcessAirport — aeródromo (US1)", () => {
     expect(repository.calls[0]?.airport.city).toBeNull();
     expect(repository.calls[0]?.airport.state).toBeNull();
     expect(repository.calls[0]?.airport.latitude).toBeNull();
+    // O país não depende de cidade, UF nem coordenadas estarem presentes (FR-005).
+    expect(repository.calls[0]?.airport.country).toBe(BRAZIL_COUNTRY_CODE);
     expect(report.warnings.join("\n")).toContain("SWXX");
     expect(report.warnings.join("\n")).toMatch(/cidade|city/i);
   });
