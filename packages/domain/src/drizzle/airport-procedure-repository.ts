@@ -71,6 +71,16 @@ export class DrizzleAirportProcedureRepository implements AirportProcedureReposi
     return rows.map(toProcedure);
   }
 
+  async findById(id: string): Promise<AirportProcedure | null> {
+    const rows = await this.db
+      .select()
+      .from(airportProcedure)
+      .where(eq(airportProcedure.id, id))
+      .limit(1);
+    const row = rows[0];
+    return row === undefined ? null : toProcedure(row);
+  }
+
   async saveAll(procedures: readonly AirportProcedure[]): Promise<void> {
     await saveProceduresWith(this.db, procedures);
   }
