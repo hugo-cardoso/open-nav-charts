@@ -11,7 +11,7 @@ describe("buildProgram", () => {
     expect(buildProgram().name()).toBe("open-nav-charts-jobs");
   });
 
-  it("regista o subcomando decea-crawler com a sua descrição", () => {
+  it("registra o subcomando decea-crawler com a descrição dele", () => {
     const commands = buildProgram().commands.map((command) => command.name());
 
     expect(commands).toContain("decea-crawler");

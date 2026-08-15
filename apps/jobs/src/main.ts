@@ -36,7 +36,7 @@ function icaoList(value: string): readonly string[] {
 }
 
 /**
- * Executa a rotina pelo nome, sem conhecer nenhuma em particular: o registo
+ * Executa a rotina pelo nome, sem conhecer nenhuma em particular: o registro
  * resolve o nome e o host apenas trata sinais, resumo e código de saída. É o que
  * permite acrescentar rotinas sem tocar nesta função (FR-002, FR-003).
  */

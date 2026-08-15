@@ -10,8 +10,8 @@ Monorepo para cartas náuticas abertas.
 | pnpm       | 9.9.0  | campo `packageManager` (via Corepack) |
 | Docker     | qualquer | Apenas para o ambiente local e os testes de integração |
 
-`pnpm` é o único gestor de pacotes suportado. `npm install` e `yarn install` são bloqueados, e
-os respetivos lockfiles não são versionados.
+`pnpm` é o único gerenciador de pacotes suportado. `npm install` e `yarn install` são bloqueados, e
+os lockfiles correspondentes não são versionados.
 
 ## Instalação
 
@@ -31,17 +31,17 @@ Todos são executados a partir da raiz e cobrem todos os pacotes do workspace.
 | Comando | O que faz |
 | ------- | --------- |
 | `pnpm check` | Portão completo de pré-merge: lint, build, tipos e testes, em sequência |
-| `pnpm lint` | Verifica lint e formatação sem escrever ficheiros |
+| `pnpm lint` | Verifica lint e formatação sem escrever arquivos |
 | `pnpm lint:fix` | Aplica as correções automatizáveis de lint e formatação |
 | `pnpm format` | Aplica apenas formatação |
 | `pnpm typecheck` | Verifica os tipos de todos os pacotes |
 | `pnpm test` | Corre a suíte unitária de todos os pacotes — sem rede e sem Docker |
 | `pnpm test:integration` | Corre os testes de integração — **exige Docker** |
-| `pnpm test:watch` | Reexecuta os testes ao detetar alterações |
+| `pnpm test:watch` | Reexecuta os testes ao detectar alterações |
 | `pnpm test:coverage` | Corre os testes gerando relatório de cobertura |
 | `pnpm build` | Compila todos os pacotes, por ordem de dependência |
 
-Antes de abrir uma alteração, corra `pnpm check`. Ele aborta no primeiro portão que falhar.
+Antes de abrir uma alteração, rode `pnpm check`. Ele aborta no primeiro portão que falhar.
 
 ### Trabalhar num pacote isolado
 
@@ -67,7 +67,7 @@ bucket de escrita fazem parte da superfície que ela precisa.
 
 A configuração é herdada de cima para baixo, nunca lateralmente entre pacotes:
 
-| Ficheiro na raiz | Responsabilidade |
+| Arquivo na raiz | Responsabilidade |
 | ---------------- | ---------------- |
 | `biome.json` | Lint e formatação de toda a árvore |
 | `tsconfig.base.json` | Flags de TypeScript, estendidas por cada pacote |
@@ -87,7 +87,7 @@ com um comando.
 docker compose up -d
 ```
 
-Sobe PostgreSQL 17 (porta 5432) e MinIO (API em 9000, consola em 9001, `minioadmin`/`minioadmin`),
+Sobe PostgreSQL 17 (porta 5432) e MinIO (API em 9000, console em 9001, `minioadmin`/`minioadmin`),
 e cria o bucket `onc-charts`. Nada mais precisa de ser instalado na máquina.
 
 ### 2. Configurar as variáveis de ambiente
@@ -96,7 +96,7 @@ e cria o bucket `onc-charts`. Nada mais precisa de ser instalado na máquina.
 cp .env.example .env
 ```
 
-Os valores já apontam para os contentores acima; só as credenciais da fonte ficam em branco e
+Os valores já apontam para os contêineres acima; só as credenciais da fonte ficam em branco e
 têm de ser preenchidas — são pedidas no portal do DECEA.
 
 | Variável | Exemplo | Uso |
@@ -112,15 +112,15 @@ têm de ser preenchidas — são pedidas no portal do DECEA.
 | `S3_FORCE_PATH_STYLE` | `true` local / `false` Railway | Estilo de URL do S3 |
 
 Todas são obrigatórias. Se faltar alguma, a rotina termina antes de coletar seja o que for,
-listando **todas** as que faltam de uma vez. O ficheiro `.env` nunca é versionado.
+listando **todas** as que faltam de uma vez. O arquivo `.env` nunca é versionado.
 
-### 3. Correr a rotina
+### 3. Executar a rotina
 
 ```bash
 pnpm --filter @open-nav-charts/jobs start decea-crawler
 ```
 
-As migrações da base de dados são aplicadas automaticamente no arranque.
+As migrações do banco de dados são aplicadas automaticamente na inicialização.
 
 | Opção | Padrão | Finalidade |
 | ----- | ------ | ---------- |
@@ -160,14 +160,14 @@ docker exec -it onc-postgres psql -U onc -d onc -c "select count(*) from airport
 docker exec -it onc-postgres psql -U onc -d onc -c "select count(*) from airport_procedure"
 ```
 
-Os documentos ficam no bucket em `<ICAO>/<id da carta>.pdf` e podem ser vistos na consola do
+Os documentos ficam no bucket em `<ICAO>/<id da carta>.pdf` e podem ser vistos no console do
 MinIO em <http://localhost:9001>.
 
 ### Encerrar o ambiente
 
 ```bash
 docker compose down     # mantém os dados
-docker compose down -v  # apaga base de dados e bucket
+docker compose down -v  # apaga banco de dados e bucket
 ```
 
 ## Criar um pacote novo
@@ -179,7 +179,7 @@ docker compose down -v  # apaga base de dados e bucket
    `../../vitest.shared.js`.
 5. Declare os scripts obrigatórios: `build`, `typecheck`, `test`, `test:watch`, `test:coverage`.
 6. Para depender de outro pacote do workspace, use o protocolo `workspace:*`.
-7. Corra `pnpm install` e depois `pnpm check`.
+7. Rode `pnpm install` e depois `pnpm check`.
 
 O checklist completo de conformidade está em
 [`specs/001-monorepo-skeleton/contracts/package-structure.md`](specs/001-monorepo-skeleton/contracts/package-structure.md).
@@ -202,7 +202,7 @@ A superfície pública de um pacote é exatamente o que está declarado no campo
   sai de `develop` numa branch `feature/<nome>` e volta para lá. `release/*` sai de `develop`
   e `hotfix/*` sai de `main` — ambas entram em `main` **e** em `develop`.
 - **Commits**: Conventional Commits com descrição em português — `feat(core): adiciona projeção mercator`
-- **Testes**: Vitest, ficheiros `*.test.ts` ao lado do código que cobrem
+- **Testes**: Vitest, arquivos `*.test.ts` ao lado do código que cobrem
 - **Estilo**: aplicado por Biome; não formate à mão contra a configuração
 
 As regras completas estão na [constituição do projeto](.specify/memory/constitution.md).

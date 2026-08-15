@@ -1,9 +1,20 @@
 # Changelog
 
-Todas as alterações notáveis deste projeto são registadas neste ficheiro.
+Todas as alterações notáveis deste projeto são registradas neste arquivo.
 
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+## [0.2.1] - 2026-08-15
+
+### Alterado
+
+- Toda a documentação, comentários de código e descrições de teste passam a usar português do
+  Brasil. Parte do texto herdado da versão 0.1.0 estava em português europeu, e os textos escritos
+  na 0.2.0 seguiram essa variante por consistência local. Nenhuma mudança de comportamento:
+  apenas vocabulário e construções ("arquivo" no lugar de "ficheiro", "executar" no lugar de
+  "correr", "gerenciador" no lugar de "gestor", "banco de dados" no lugar de "base de dados",
+  entre outros).
 
 ## [0.2.0] - 2026-08-15
 
@@ -13,11 +24,11 @@ coleta o catálogo de aeródromos e cartas IFR do DECEA.
 ### Adicionado
 
 - `@open-nav-charts/jobs` (`apps/jobs`): host de rotinas operacionais executáveis por linha de
-  comando, com registo de rotinas, validação de configuração no arranque, progresso contínuo,
+  comando, com registro de rotinas, validação de configuração na inicialização, progresso contínuo,
   resumo final e códigos de saída distintos (`0` limpo, `1` com falhas, `2` configuração
   inválida, `3` dependência indisponível, `130` interrompido).
 - Rotina `decea-crawler`: coleta da API AISWEB do DECEA todos os aeródromos do tipo `AD` com
-  coordenadas e pistas, as respetivas cartas IFR, e arquiva os PDFs em `<ICAO>/<id>.pdf` num
+  coordenadas e pistas, as cartas IFR correspondentes, e arquiva os PDFs em `<ICAO>/<id>.pdf` em um
   bucket compatível com S3. Pagina de 100, processa 4 aeródromos em simultâneo e repete cada
   aeródromo até 3 vezes em falha transitória. Reexecutar é idempotente.
 - `@open-nav-charts/domain` (`packages/domain`): entidades `Airport`, `AirportRunway` e
@@ -30,8 +41,8 @@ coleta o catálogo de aeródromos e cartas IFR do DECEA.
   chave determinística e validação da assinatura `%PDF-` antes de gravar.
 - Ambiente local com `docker compose up -d`: PostgreSQL 17 e MinIO com o bucket já criado, e
   `.env.example` com as nove variáveis documentadas.
-- `pnpm test:integration`: testes contra PostgreSQL e MinIO efémeros via Testcontainers,
-  isolados do `pnpm test`, que continua a correr sem rede e sem Docker.
+- `pnpm test:integration`: testes contra PostgreSQL e MinIO efêmeros via Testcontainers,
+  isolados do `pnpm test`, que continua rodando sem rede e sem Docker.
 - Documentação de utilização em `apps/jobs/README.md` (host, configuração, códigos de saída,
   como acrescentar uma rotina) e em `apps/jobs/src/jobs/decea-crawler/README.md` (opções da
   rotina, pipeline e peculiaridades da fonte).
@@ -65,8 +76,8 @@ náuticas — esta versão entrega a base sobre a qual ela será construída.
 ### Adicionado
 
 - Monorepo pnpm com workspaces em `packages/` (bibliotecas) e `apps/` (aplicações),
-  Node.js 22 fixado em `.nvmrc` e `engines.node`, e pnpm como único gestor suportado.
-- Configuração partilhada na raiz, herdada por todos os pacotes: `biome.json` para lint e
+  Node.js 22 fixado em `.nvmrc` e `engines.node`, e pnpm como único gerenciador suportado.
+- Configuração compartilhada na raiz, herdada por todos os pacotes: `biome.json` para lint e
   formatação, `tsconfig.base.json` com TypeScript em modo estrito, e `vitest.shared.ts` para
   testes. Um pacote novo fica coberto pelos três portões sem alterar a raiz.
 - Comandos agregadores executáveis a partir da raiz — `lint`, `lint:fix`, `format`,
@@ -88,7 +99,7 @@ náuticas — esta versão entrega a base sobre a qual ela será construída.
 
 ### Notas
 
-- O bloqueio a gestores de pacotes não suportados funciona — `npm install` falha e não gera
-  lockfile —, mas o npm rebenta ao resolver o protocolo `workspace:*` antes de executar o
-  hook `preinstall`, pelo que a mensagem exibida é um erro interno do npm em vez da mensagem
+- O bloqueio a gerenciadores de pacotes não suportados funciona — `npm install` falha e não gera
+  lockfile —, mas o npm quebra ao resolver o protocolo `workspace:*` antes de executar o
+  hook `preinstall`, então a mensagem exibida é um erro interno do npm em vez da mensagem
   do `only-allow`.
