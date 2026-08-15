@@ -2,7 +2,7 @@
 
 Host de rotinas operacionais do open-nav-charts, executáveis por linha de comando.
 
-Uma **rotina** (job) é uma tarefa de manutenção de dados que se corre sob demanda — coletar de
+Uma **rotina** (job) é uma tarefa de manutenção de dados executada sob demanda — coletar de
 uma fonte externa, reprocessar, limpar. Cada uma é executável isoladamente e devolve um código de
 saída que distingue execução limpa de execução com falhas, o que torna a aplicação automatizável
 por cron ou por um agendador externo.
@@ -21,14 +21,14 @@ Rotinas disponíveis:
 # A partir da raiz do repositório
 pnpm --filter @open-nav-charts/jobs start <rotina> [opções]
 
-# Ajuda: lista as rotinas registadas
+# Ajuda: lista as rotinas registradas
 pnpm --filter @open-nav-charts/jobs start --help
 
 # Ajuda de uma rotina específica
 pnpm --filter @open-nav-charts/jobs start decea-crawler --help
 ```
 
-O script `start` compila antes de correr (`prestart`), pelo que apanha sempre a versão atual do
+O script `start` compila antes de executar (`prestart`), então pega sempre a versão atual do
 código. Depois de um `pnpm build`, o binário também pode ser invocado diretamente:
 
 ```bash
@@ -48,8 +48,7 @@ a partir da raiz do repositório:
 docker compose up -d
 ```
 
-As migrações da base de dados são aplicadas **automaticamente no arranque** de cada execução, pelo
-que não há passo manual de preparação do esquema. Para aplicá-las sem correr nenhuma rotina:
+As migrações da banco de dados são aplicadas **automaticamente na inicialização** de cada execução, então não há passo manual de preparação do esquema. Para aplicá-las sem executar nenhuma rotina:
 
 ```bash
 pnpm --filter @open-nav-charts/domain migrate
@@ -59,7 +58,7 @@ pnpm --filter @open-nav-charts/domain migrate
 
 ## Configuração
 
-Toda a configuração vem de variáveis de ambiente, validadas no arranque **antes de qualquer
+Toda a configuração vem de variáveis de ambiente, validadas na inicialização **antes de qualquer
 coleta**. Copie o modelo e preencha as credenciais da fonte:
 
 ```bash
@@ -87,7 +86,7 @@ Configuração inválida. Corrija as variáveis de ambiente abaixo (ver .env.exa
   - S3_BUCKET: ausente
 ```
 
-Reportar todas de uma vez é deliberado: descobrir uma variável em falta por execução é um ciclo
+Reportar todas de uma vez é deliberado: descobrir uma variável ausente por execução é um ciclo
 frustrante quando são nove.
 
 O `.env` nunca é versionado — apenas o `.env.example`. Nenhuma mensagem de erro imprime o **valor**
@@ -119,7 +118,7 @@ significam que nada foi feito e a causa é de ambiente, não da fonte.
 1. Nenhum item novo é iniciado;
 2. Os em curso terminam, sem gravação parcial;
 3. O resumo parcial é impresso;
-4. O pool da base de dados e o cliente S3 são fechados;
+4. O pool da banco de dados e o cliente S3 são fechados;
 5. O processo sai com `130`.
 
 Como todas as gravações são idempotentes, uma nova execução simplesmente refaz o que ficou
@@ -131,7 +130,7 @@ pendente — não há estado de progresso a recuperar.
 
 ### Progresso
 
-Emitido continuamente, para se localizar o ponto da varredura sem consultar a base de dados:
+Emitido continuamente, para se localizar o ponto da varredura sem consultar a banco de dados:
 
 ```text
 [decea-crawler] Iniciando. 4441 aeródromos em 45 páginas, 4 simultâneos.
@@ -180,8 +179,8 @@ main.ts                        Entrypoint: analisa argumentos e trata sinais
 
 | Peça | Responsabilidade |
 | ---- | ---------------- |
-| `main.ts` | Analisa argumentos (commander), regista os handlers de sinal, mapeia o resultado para código de saída |
-| `composition-root.ts` | **Único** ponto que instancia classes concretas; cria e fecha o pool da base de dados e o cliente S3 |
+| `main.ts` | Analisa argumentos (commander), registra os handlers de sinal, mapeia o resultado para código de saída |
+| `composition-root.ts` | **Único** ponto que instancia classes concretas; cria e fecha o pool da banco de dados e o cliente S3 |
 | `runtime/job.ts` | A interface `Job` — o contrato de uma rotina |
 | `runtime/job-registry.ts` | Registo nome → rotina, com rejeição de nome duplicado |
 | `runtime/retry-policy.ts` | Repetição com *backoff* exponencial e *jitter*, distinguindo erro retentável de definitivo |
@@ -191,7 +190,7 @@ main.ts                        Entrypoint: analisa argumentos e trata sinais
 | `runtime/clock.ts` | Relógio injetado, para o *backoff* ser testável sem esperar de verdade |
 | `config/environment-config.ts` | Lê e valida as nove variáveis, agregando todos os erros |
 
-Colaboradores de I/O (fonte externa, base de dados, bucket, relógio, saída) são sempre consumidos
+Colaboradores de I/O (fonte externa, banco de dados, bucket, relógio, saída) são sempre consumidos
 **por interface** e injetados por construtor. A classe concreta só é nomeada em
 `composition-root.ts`. É isto que permite testar cada peça com dublês em memória, sem rede nem
 Docker.
@@ -221,9 +220,9 @@ export class MinhaRotina implements Job {
 }
 ```
 
-**2.** Se a rotina receber opções de linha de comando, acrescente a sua chave em
+**2.** Se a rotina receber opções de linha de comando, acrescente a chave dela em
 `JobOptionsByName` (`composition-root.ts`). As chaves são opcionais: só a rotina invocada recebe
-opções, as demais são construídas com os seus padrões e nunca chegam a correr.
+opções, as demais são construídas com os padrões delas e nunca chegam a executar.
 
 ```ts
 export interface JobOptionsByName {
@@ -232,7 +231,7 @@ export interface JobOptionsByName {
 }
 ```
 
-**3.** Instancie-a em `composition-root.ts` e registe-a:
+**3.** Instancie-a em `composition-root.ts` e registre-a:
 
 ```ts
 buildRegistry(progress: ProgressReporter, jobOptions: JobOptionsByName): JobRegistry {
@@ -245,8 +244,8 @@ buildRegistry(progress: ProgressReporter, jobOptions: JobOptionsByName): JobRegi
 }
 ```
 
-**4.** Declare o subcomando e as suas opções em `main.ts`, à semelhança de `decea-crawler`. O
-`action` passa o **nome do próprio subcomando** ao host, que despacha pelo registo:
+**4.** Declare o subcomando e as opções dele em `main.ts`, como em `decea-crawler`. O
+`action` passa o **nome do próprio subcomando** ao host, que despacha pelo registro:
 
 ```ts
 program
@@ -260,13 +259,13 @@ program
   });
 ```
 
-`runJob` não conhece rotina nenhuma: recebe o nome, pede-a ao registo e trata sinais, resumo e
+`runJob` não conhece rotina nenhuma: recebe o nome, pede ao registro e trata sinais, resumo e
 código de saída de forma genérica. Nenhuma rotina existente é tocada.
 
 **5.** Escreva os testes: unitários com dublês para a lógica, e de integração se a rotina cruzar a
 fronteira de um pacote.
 
-Invocar um nome não registado encerra com código `2` e lista as rotinas disponíveis.
+Invocar um nome não registrado encerra com código `2` e lista as rotinas disponíveis.
 
 ---
 
@@ -280,7 +279,7 @@ pnpm --filter @open-nav-charts/jobs test
 pnpm --filter @open-nav-charts/jobs test:integration
 ```
 
-Os testes de integração vivem em `tests/` e correm a rotina ponta a ponta contra base de dados e
+Os testes de integração vivem em `tests/` e correm a rotina ponta a ponta contra banco de dados e
 bucket reais, com a fonte externa substituída por um servidor HTTP local — o que permite exercitar
 o caminho completo sem credenciais do DECEA.
 
@@ -293,8 +292,8 @@ de I/O real e viola o Princípio IV da constituição.
 
 | Sintoma | Causa provável | Ação |
 | ------- | -------------- | ---- |
-| Sai com `2` logo no arranque | Variável de ambiente em falta | Conferir o `.env` contra o `.env.example` |
-| Sai com `3` de imediato | 401/403 da fonte, ou base de dados/bucket inacessíveis | Validar credenciais e `docker compose ps` |
+| Sai com `2` logo na inicialização | Variável de ambiente ausente | Conferir o `.env` contra o `.env.example` |
+| Sai com `3` de imediato | 401/403 da fonte, ou banco de dados/bucket inacessíveis | Validar credenciais e `docker compose ps` |
 | `SignatureDoesNotMatch` no MinIO | Estilo de URL do S3 | `S3_FORCE_PATH_STYLE=true` no ambiente local |
 | Conexões esgotadas no PostgreSQL | Pool menor que a concorrência | Pool ≥ `--concurrency` |
 | A rotina não responde a `Ctrl+C` | Item em curso a terminar | Aguardar; o segundo `Ctrl+C` mata o processo sem resumo |

@@ -1,7 +1,7 @@
 # Rotina `decea-crawler`
 
 Coleta da API AISWEB do DECEA todos os aeródromos do tipo `AD`, enriquece cada um com coordenadas
-e pistas, coleta as suas cartas IFR e arquiva os PDFs correspondentes num bucket compatível com S3.
+e pistas, coleta as cartas IFR dele e arquiva os PDFs correspondentes em um bucket compatível com S3.
 
 Documentação do host, configuração e códigos de saída: [`apps/jobs/README.md`](../../../README.md).
 
@@ -19,8 +19,8 @@ pnpm --filter @open-nav-charts/jobs start decea-crawler [opções]
 | ----- | ------ | ---------- |
 | `--page-size <n>` | `100` | Itens por página do catálogo |
 | `--concurrency <n>` | `4` | Aeródromos processados em simultâneo |
-| `--max-attempts <n>` | `3` | Tentativas por aeródromo antes de o marcar como falho |
-| `--skip-documents` | desligado | Coleta metadados sem descarregar os PDFs |
+| `--max-attempts <n>` | `3` | Tentativas por aeródromo antes de marcá-lo como falho |
+| `--skip-documents` | desligado | Coleta metadados sem baixar os PDFs |
 | `--only <ICAO,ICAO>` | — | Restringe a varredura aos ICAOs indicados, sem paginar |
 
 Os padrões são os valores de produção. As opções existem para diagnóstico e para encurtar o ciclo
@@ -60,7 +60,7 @@ pnpm --filter @open-nav-charts/jobs start decea-crawler --only SBGR,SBSP --concu
 aeródromo**. Essa divisão é o que permite à política de tentativas envolver o caso de uso inteiro
 sem que ele saiba que está a ser repetido.
 
-### O aeródromo é a unidade atómica de repetição
+### O aeródromo é a unidade atômica de repetição
 
 Uma falha em qualquer etapa reexecuta o **aeródromo inteiro**, até 3 tentativas. É seguro porque
 cada etapa é idempotente: upsert por ICAO, upsert por id de carta, upload por chave determinística.
@@ -68,7 +68,7 @@ Repetir não duplica.
 
 ### Ordem de gravação dentro de `ProcessAirport`
 
-Base de dados e bucket não partilham transação, pelo que a ordem é escolhida para que qualquer
+Base de dados e bucket não compartilham transação, então a ordem é escolhida para que qualquer
 falha degrade para um estado inofensivo e autocorrigível:
 
 1. **Arquivar** no bucket os documentos ainda não arquivados;
@@ -77,7 +77,7 @@ falha degrade para um estado inofensivo e autocorrigível:
 
 Falha entre 1 e 2 deixa um objeto órfão no bucket — a execução seguinte sobrescreve-o ou remove-o.
 Falha em 3 deixa igualmente um órfão, também limpo depois. A ordem inversa (apagar antes do commit)
-produziria o único estado realmente mau: um registo na base de dados a apontar para um documento
+produziria o único estado realmente mau: um registro no banco de dados apontando para um documento
 que já não existe.
 
 ---
@@ -93,7 +93,7 @@ Determina o que consome as 3 tentativas e o que falha de imediato:
 | `total` das cartas divergente da contagem de itens | Retentável | Resposta truncada; vale repetir |
 | HTTP 4xx (exceto 429) | Definitivo | Aeródromo falho, sem repetir |
 | XML malformado ou envelope vazio | Definitivo | Aeródromo falho, sem repetir |
-| Campo obrigatório em falta (`AeroCode`, `name`, `id`/`nome`/`tipo` da carta) | Definitivo | Aeródromo falho |
+| Campo obrigatório ausente (`AeroCode`, `name`, `id`/`nome`/`tipo` da carta) | Definitivo | Aeródromo falho |
 | PDF inválido ou vazio | Definitivo | **A carta** falha; as restantes do aeródromo prosseguem |
 | HTTP 401/403 | Abortivo | Encerra a execução inteira com código `3` |
 
@@ -116,11 +116,11 @@ sincronia após uma falha coletiva.
 
 No bucket, um objeto por carta em `<ICAO>/<id da carta>.pdf`, com `Content-Type: application/pdf`.
 A chave é derivável, nunca aleatória — é isso que torna o upload idempotente e permite verificar a
-existência antes de descarregar.
+existência antes de baixar.
 
-**Campos opcionais em falta** (cidade, UF, coordenadas) não impedem a gravação: o aeródromo é
-persistido com o que há e a ausência entra nos alertas do resumo. Já `name` em falta torna o
-aeródromo falho — sem nome o registo não serve para nada.
+**Campos opcionais ausentes** (cidade, UF, coordenadas) não impedem a gravação: o aeródromo é
+persistido com o que há e a ausência entra nos alertas do resumo. Já `name` ausente torna o
+aeródromo falho — sem nome o registro não serve para nada.
 
 Latitude e longitude são gravadas **juntas ou nenhuma**: meia coordenada é inútil.
 
@@ -159,18 +159,18 @@ Sem isso, a violação do índice derrubaria o aeródromo inteiro.
 `<aisweb></aisweb>`. É tratado como falha definitiva: repetir não faz o dado aparecer.
 
 **A paginação usa `Math.ceil`.** Truncar perderia a última página parcial — com 4441 aeródromos em
-páginas de 100, seriam 44 páginas em vez de 45, deixando 41 registos para trás. A varredura também
+páginas de 100, seriam 44 páginas em vez de 45, deixando 41 registros para trás. A varredura também
 termina em página vazia, o que protege contra um catálogo que mude durante a execução.
 
 ---
 
-## Ficheiros
+## Arquivos
 
-| Ficheiro | Responsabilidade |
+| Arquivo | Responsabilidade |
 | -------- | ---------------- |
 | `decea-crawler-job.ts` | A varredura: paginação e limite de concorrência |
-| `process-airport.ts` | Um aeródromo ponta a ponta — a unidade atómica de repetição |
-| `chart-archiver.ts` | Verifica existência, descarrega, valida e envia o PDF ao bucket |
+| `process-airport.ts` | Um aeródromo ponta a ponta — a unidade atômica de repetição |
+| `chart-archiver.ts` | Verifica existência, baixa, valida e envia o PDF ao bucket |
 | `chart-type-audit.ts` | Acumula a distribuição de tipos e sinaliza os desconhecidos |
 | `pagination.ts` | Cálculo de páginas e deslocamentos (funções puras) |
 | `procedure-diff.ts` | *Diff* entre as cartas da fonte e as persistidas (função pura) |
