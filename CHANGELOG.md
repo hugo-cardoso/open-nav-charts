@@ -5,6 +5,41 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.5.0] - 2026-08-15
+
+O acervo passa a registrar o país de cada aeródromo, e a API agrupa os dados de localização em um
+objeto próprio, em vez de espalhá-los pelo nível superior da resposta.
+
+### Adicionado
+
+- Coluna `country` na tabela `airport` (código ISO 3166-1 alpha-2, anulável), com índice próprio.
+  A rotina `decea-crawler` grava `BR` a cada coleta, independentemente de cidade, unidade
+  federativa e coordenadas estarem presentes — o DECEA cobre exclusivamente o Brasil, então o país
+  é conhecido mesmo quando o resto falta. A migration `0002` retroalimenta o acervo já gravado, de
+  modo que o filtro por país responde sem esperar uma coleta completa.
+- Filtro `country` em `GET /v1/airports`: recorta o catálogo por código de duas letras, insensível
+  a caixa, combinável com `state`, `search` e a paginação. O `total` reflete o conjunto filtrado.
+  A validação é de formato apenas: um código bem formado porém não atribuído no padrão ISO (`XX`)
+  responde 200 com lista vazia, e não erro — a API não mantém a tabela de códigos atribuídos.
+  Aeródromo sem país registrado nunca entra no resultado de um filtro de país.
+- Erro `INVALID_COUNTRY` (400) para `country` que não seja exatamente duas letras.
+
+### Alterado
+
+- **BREAKING** — `city`, `state`, `latitude` e `longitude` **deixam de existir no nível superior**
+  das respostas de aeródromo. Passam a viver dentro do objeto `location`, junto do novo campo
+  `country`. Afeta `GET /v1/airports` (cada item de `items`) e `GET /v1/airports/:icao`; as rotas
+  de procedimentos e de carta não mudam.
+  - **Impacto**: `airport.city` vira `airport.location.city`, e assim para `state`, `latitude` e
+    `longitude`. `icao`, `name` e `runways` permanecem onde estavam.
+  - `location` está **sempre presente**, ainda que todos os seus campos sejam nulos, e campo sem
+    valor continua saindo como `null` explícito — o consumidor nunca precisa checar a existência
+    da chave.
+  - O país é exposto como código, sem tradução para nome por extenso.
+- Contrato publicado em `GET /docs` atualizado: `query.country`, `INVALID_COUNTRY` entre os erros
+  da listagem, o novo formato de `location` na ficha do aeródromo e um passo do roteiro rápido
+  exercitando o filtro por país.
+
 ## [0.4.0] - 2026-08-15
 
 A rotina passa a sinalizar seu desfecho de forma que um agendador externo entenda: só falha o que
