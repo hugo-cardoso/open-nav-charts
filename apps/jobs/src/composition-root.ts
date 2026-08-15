@@ -81,7 +81,7 @@ export class CompositionRoot {
   }
 
   /**
-   * Monta o registo com todas as rotinas conhecidas. `jobOptions` traz as opções
+   * Monta o registro com todas as rotinas conhecidas. `jobOptions` traz as opções
    * de linha de comando indexadas por nome de rotina: cada uma lê a sua e ignora
    * as demais, para acrescentar rotinas não exigir mudar esta assinatura.
    */

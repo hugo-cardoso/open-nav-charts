@@ -275,7 +275,7 @@ Invocar um nome não registrado encerra com código `2` e lista as rotinas dispo
 # Unitários: sem rede e sem Docker
 pnpm --filter @open-nav-charts/jobs test
 
-# Integração: exige Docker (PostgreSQL e MinIO efémeros via Testcontainers)
+# Integração: exige Docker (PostgreSQL e MinIO efêmeros via Testcontainers)
 pnpm --filter @open-nav-charts/jobs test:integration
 ```
 
