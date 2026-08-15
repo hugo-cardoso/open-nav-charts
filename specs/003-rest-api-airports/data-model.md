@@ -130,7 +130,7 @@ JavaScript, sem nenhuma extensão do PostgreSQL — justificativa em
 ALTER TABLE airport ADD COLUMN search_text text;
 
 -- Preenche o acervo já existente. Passo único da migração: a normalização em SQL
--- espelha o que a função em JavaScript faz, e só corre aqui.
+-- espelha o que a função em JavaScript faz, e só roda aqui.
 UPDATE airport SET search_text = translate(
   lower(icao || ' ' || name || ' ' || coalesce(city, '')),
   'áàâãäéèêëíìîïóòôõöúùûüçñ',

@@ -1,4 +1,18 @@
 <!--
+Sync Impact Report — 1.2.0 (emenda de 2026-08-15)
+- Version change: 1.1.0 → 1.2.0 (MINOR: novo princípio + expansão material de orientação)
+- Added principles:
+  - VI. Português do Brasil na Comunicação, Inglês no Código: fixa pt-BR (nunca português
+    europeu) para comentários, documentação, mensagens de commit, specs e textos de PR, e
+    mantém identificadores, APIs e nomes de arquivo em inglês.
+- Modified sections:
+  - "Fluxo de Desenvolvimento" → "Commits e revisão": commits passam a ser de linha única
+    (sem corpo) e MUST NOT atribuir autoria ou coautoria a modelos de IA.
+  - "Restrições Tecnológicas": acrescenta a entrada de idioma.
+- Removed sections: none
+- Deferred TODOs: none
+- Migração: nenhuma; commits e documentos já existentes não são reescritos.
+
 Sync Impact Report — 1.1.0 (emenda de 2026-08-14)
 - Version change: 1.0.0 → 1.1.0 (MINOR: expansão material de orientação)
 - Modified principles: nenhum princípio alterado
@@ -122,6 +136,27 @@ raiz que os pacotes herdam. ESLint e Prettier MUST NOT ser adicionados.
 **Rationale**: Uma ferramenta única para lint e formatação elimina conflitos de regras
 entre ferramentas concorrentes e mantém o diff focado em mudanças de comportamento.
 
+### VI. Português do Brasil na Comunicação, Inglês no Código
+
+Todo texto dirigido a pessoas MUST ser escrito em português do Brasil (pt-BR). Português
+europeu MUST NOT ser usado, nem mesmo parcialmente.
+
+- Abrange comentários de código, documentação (`README`, ADRs, `docs/`), mensagens de commit,
+  descrições de PR e issues, specs e artefatos do Spec Kit, e mensagens de erro voltadas ao
+  usuário final.
+- A ortografia MUST seguir a norma brasileira: preferir "arquivo" a "ficheiro", "tela" a
+  "ecrã", "usuário" a "utilizador", "time" a "equipa", gerúndio ("está rodando") em vez de
+  "está a rodar". Acentuação e diacríticos MUST ser preservados; substituir "não" por "nao"
+  é violação.
+- O código em si permanece em inglês: identificadores, nomes de tipos, funções, variáveis,
+  chaves de configuração, nomes de arquivo e diretório, e APIs públicas MUST usar inglês.
+- Textos de terceiros (dependências, dados de fontes externas, termos técnicos consagrados
+  como *commit*, *build*, *merge*) MUST NOT ser traduzidos à força.
+
+**Rationale**: Uma única variante do idioma mantém a documentação coesa e legível para quem
+mantém o projeto, enquanto o código em inglês preserva a interoperabilidade com o ecossistema
+e evita identificadores acentuados ou ambíguos.
+
 ## Restrições Tecnológicas
 
 - **Runtime**: Node.js 22 (fixado em `.nvmrc` e `engines.node`).
@@ -130,6 +165,7 @@ entre ferramentas concorrentes e mantém o diff focado em mudanças de comportam
 - **Frontend**: Vite como ferramenta de build preferencial; componentes funcionais.
 - **Testes**: Vitest.
 - **Lint e formatação**: Biome.
+- **Idioma**: português do Brasil em textos para pessoas; inglês em identificadores e código.
 - Adotar qualquer ferramenta que substitua um item acima MUST ser tratado como emenda a
   esta constituição, não como decisão isolada de uma feature.
 
@@ -165,9 +201,20 @@ após o merge:
 
 - **Commits**: MUST seguir Conventional Commits (`tipo(escopo): descrição`). A descrição
   MUST ser escrita em português do Brasil. O escopo SHOULD identificar o pacote do
-  workspace afetado. Exemplo: `feat(charts): adiciona eixo logaritmico ao grafico de linha`.
-- **Breaking changes**: MUST ser sinalizadas com `!` após o escopo ou com rodapé
-  `BREAKING CHANGE:`, descrevendo a migração necessária.
+  workspace afetado. Exemplo: `feat(charts): adiciona eixo logarítmico ao gráfico de linha`.
+- **Mensagem de linha única**: um commit MUST conter apenas a linha de assunto. Corpo e
+  rodapés MUST NOT ser usados. Se a mudança exige explicação mais longa, ela pertence à
+  descrição do PR ou aos artefatos da feature em `specs/`, não ao commit.
+  - Corolário: quando uma mudança só se explica com um corpo, ela SHOULD ser dividida em
+    commits menores cujo assunto já seja autoexplicativo.
+- **Autoria humana**: commits MUST NOT atribuir autoria ou coautoria a modelos de IA. Rodapés
+  `Co-Authored-By:` apontando para assistentes (por exemplo `Claude`, `noreply@anthropic.com`)
+  e autores de commit não humanos MUST NOT ser adicionados. O responsável registrado é sempre
+  a pessoa que revisou e aprovou a mudança. Esta regra decorre também da proibição de rodapés
+  acima.
+- **Breaking changes**: MUST ser sinalizadas com `!` após o escopo (por exemplo
+  `feat(jobs)!: ...`). Como rodapés são proibidos, `BREAKING CHANGE:` MUST NOT ser usado; a
+  migração necessária MUST ser descrita na descrição do PR e no plano da feature.
 - **Portões de qualidade**: antes do merge, MUST passar — verificação de tipos, Biome
   (lint e formatação) e a suíte Vitest completa.
 - **Revisão**: toda mudança MUST ser revisada quanto à conformidade com os princípios
@@ -190,4 +237,4 @@ documento do repositório, esta constituição vence.
 - **Exceções**: MUST ser documentadas no plano da feature correspondente, com escopo e
   prazo definidos. Exceções não documentadas são violações.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+**Version**: 1.2.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-15

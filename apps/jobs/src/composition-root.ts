@@ -26,7 +26,7 @@ export interface CrawlerRunOptions extends CrawlerOptions {
  * aqui; as existentes não são tocadas (FR-003).
  *
  * As chaves são opcionais porque só a rotina invocada recebe opções — as demais
- * são construídas com os seus padrões e nunca chegam a correr.
+ * são construídas com os seus padrões e nunca chegam a executar.
  */
 export interface JobOptionsByName {
   readonly "decea-crawler"?: CrawlerRunOptions;

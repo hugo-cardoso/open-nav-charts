@@ -1,6 +1,6 @@
 ALTER TABLE "airport" ADD COLUMN "search_text" text;--> statement-breakpoint
 -- Backfill do acervo já gravado. A normalização em SQL espelha `normalizeSearchText`
--- do pacote domain e só corre aqui; daí em diante quem preenche é `saveAirportWith`.
+-- do pacote domain e só roda aqui; daí em diante quem preenche é `saveAirportWith`.
 UPDATE "airport" SET "search_text" = translate(
   lower("icao" || ' ' || "name" || ' ' || coalesce("city", '')),
   'áàâãäéèêëíìîïóòôõöúùûüçñ',

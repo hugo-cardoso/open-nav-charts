@@ -4,12 +4,15 @@ import { UnknownJobError } from "./job-registry.js";
 import type { RunReport } from "./run-report.js";
 
 /**
- * Separar `1` de `2`/`3` importa: `1` é resultado com dado coletado, enquanto
- * `2` e `3` significam que nada foi feito e a causa é de ambiente (FR-028).
+ * `0` significa que a rotina rodou e persistiu dado — com ou sem falhas de itens
+ * individuais, que vivem no resumo, não aqui. `1`/`2`/`3` significam que o
+ * trabalho não foi feito: `1` é erro inesperado não tratado, `2`/`3` são falhas
+ * de ambiente. Um agendador binário lê `0` como sucesso e qualquer outro código
+ * como falha, então só o desfecho "não rodou" deve sair não-zero.
  */
 export const ExitCode = {
   Success: 0,
-  CompletedWithFailures: 1,
+  UnexpectedError: 1,
   InvalidConfiguration: 2,
   DependencyUnavailable: 3,
   Interrupted: 130,
@@ -17,11 +20,16 @@ export const ExitCode = {
 
 export type ExitCodeValue = (typeof ExitCode)[keyof typeof ExitCode];
 
-export function exitCodeForReport(report: RunReport, interrupted: boolean): ExitCodeValue {
+// `_report` é intencionalmente ignorado: uma execução que produziu relatório
+// rodou e persistiu dado, então o código é sempre `Success` fora de interrupção.
+// O parâmetro permanece para distinguir, no ponto de chamada, o caminho de
+// relatório do caminho de exceção (`exitCodeForError`); as falhas de itens vivem
+// no resumo, não no código de saída (FR-001, FR-004).
+export function exitCodeForReport(_report: RunReport, interrupted: boolean): ExitCodeValue {
   if (interrupted) {
     return ExitCode.Interrupted;
   }
-  return report.hasFailures ? ExitCode.CompletedWithFailures : ExitCode.Success;
+  return ExitCode.Success;
 }
 
 export function exitCodeForError(error: unknown): ExitCodeValue {
@@ -36,7 +44,9 @@ export function exitCodeForError(error: unknown): ExitCodeValue {
   if (isAuthenticationSourceError(error) || isUnavailableDependency(error)) {
     return ExitCode.DependencyUnavailable;
   }
-  return ExitCode.CompletedWithFailures;
+  // Erro não classificado: um caminho não previsto (bug). Continua não-zero,
+  // logo falha para o agendador, mas distinto das falhas de ambiente.
+  return ExitCode.UnexpectedError;
 }
 
 function isAborted(error: unknown): boolean {

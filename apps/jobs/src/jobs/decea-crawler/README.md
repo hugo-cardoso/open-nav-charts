@@ -58,7 +58,7 @@ pnpm --filter @open-nav-charts/jobs start decea-crawler --only SBGR,SBSP --concu
 
 `DeceaCrawlerJob` cuida da **varredura** (paginação e concorrência); `ProcessAirport` cuida de **um
 aeródromo**. Essa divisão é o que permite à política de tentativas envolver o caso de uso inteiro
-sem que ele saiba que está a ser repetido.
+sem que ele saiba que está sendo repetido.
 
 ### O aeródromo é a unidade atômica de repetição
 
