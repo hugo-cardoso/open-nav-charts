@@ -1,0 +1,6 @@
+/* Uma coluna em telas estreitas, três quando houver espaço — sem media query. */
+.features {
+  display: grid;
+  gap: var(--mantine-spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}

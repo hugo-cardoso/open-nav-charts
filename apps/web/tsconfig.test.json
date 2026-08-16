@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+    // Sem `rootDir`, diferente dos outros pacotes: este não emite arquivos, e
+    // `vitest.config.ts` importa `vitest.shared.ts` da raiz do monorepo, que
+    // ficaria fora de qualquer rootDir local.
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.config.ts"],
+  "exclude": ["dist"]
+}

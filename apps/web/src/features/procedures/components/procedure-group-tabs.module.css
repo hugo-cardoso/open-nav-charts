@@ -1,0 +1,77 @@
+/*
+ * Abas em grade fluida: acomodam-se ao número de grupos e quebram em telas
+ * estreitas sem forçar rolagem horizontal (FR-025).
+ */
+.list {
+  display: grid;
+  gap: var(--mantine-spacing-xs);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6.5rem), 1fr));
+  border: none;
+}
+
+.tab {
+  position: relative;
+  overflow: hidden;
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  border-radius: var(--mantine-radius-md);
+  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+  font-weight: 600;
+  text-align: center;
+  justify-content: center;
+}
+
+/*
+ * A faixa colorida na base identifica o grupo. A cor vem de `--group-color`,
+ * definida pelo componente a partir do tema — assim o modo escuro ajusta o tom
+ * sozinho, sem valores literais espalhados no CSS.
+ */
+.tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 4px;
+  background-color: var(--group-color);
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+}
+
+.tab[data-active]::after {
+  opacity: 1;
+  height: 5px;
+}
+
+.tab[data-active] {
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-5));
+  border-color: var(--group-color);
+}
+
+.tab:hover:not([data-active]) {
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-5));
+}
+
+/* O indicador de foco precisa continuar visível sobre o cartão (SC-007). */
+.tab:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-6);
+  outline-offset: 2px;
+}
+
+.count {
+  margin-inline-start: var(--mantine-spacing-xs);
+  font-weight: 400;
+  color: var(--mantine-color-dimmed);
+}
+
+/*
+ * Aba sem procedimentos neste aeródromo: continua acessível e selecionável, mas
+ * atenuada, para que dê para ver onde há conteúdo antes de clicar. A opacidade
+ * fica acima de 0.5 para o contraste do texto permanecer legível.
+ */
+.tab[data-empty="true"]:not([data-active]) {
+  opacity: 0.55;
+}
+
+.tab[data-empty="true"]::after {
+  opacity: 0.25;
+}
