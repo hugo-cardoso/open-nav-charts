@@ -5,6 +5,51 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] - 2026-08-16
+
+O acervo ganha uma interface própria: uma aplicação web que torna as cartas consultáveis por
+pessoas, sem exigir o consumo direto da API.
+
+### Adicionado
+
+- **Aplicação web** (`apps/web`), em React com Mantine e Vite, servida como arquivos estáticos
+  e consumindo apenas a API pública. Somente leitura: não cria nem altera dados do acervo.
+- **Tela inicial** que apresenta o produto e o acervo disponível, e leva ao painel de busca em
+  um acionamento. Não consulta a API, então fica completa mesmo em conexão lenta.
+- **Busca por código ICAO com autocomplete**: a partir de duas letras, os aeródromos cujo
+  código começa pelo termo são sugeridos com código, nome e localidade. Escolher uma sugestão
+  abre diretamente a tela do aeródromo. A busca considera apenas o código — um termo que
+  corresponda somente ao nome não produz sugestão.
+- **Seletor de país** que restringe as sugestões, apresentando os países por nome em vez de
+  código. O acervo hoje contém apenas aeródromos do Brasil.
+- **Tela do aeródromo** com nome, código, localidade, coordenadas e pistas, além dos
+  procedimentos publicados.
+- **Procedimentos agrupados em abas** por natureza — chegada (STAR), aproximação (IAC e VAC),
+  solo (ADC, AGMC e PDC) e saída (SID) —, cada uma distinguida por cor. Tipos fora desse
+  agrupamento são recolhidos em um grupo adicional, para que nenhum procedimento fique
+  inalcançável. As abas do agrupamento aparecem mesmo vazias, de modo que sua posição seja
+  idêntica em todo aeródromo, e uma aba sem conteúdo informa a ausência ao ser aberta.
+- **Abertura da carta em nova aba**, com o endereço assinado resolvido no momento do clique.
+  Uma carta aberta muito depois de a lista carregar continua funcionando, e o painel já
+  carregado permanece intacto. Procedimentos sem documento arquivado não oferecem abertura.
+- **Estado de consulta no endereço**: país selecionado e aba ativa vivem na URL, então
+  recarregar ou compartilhar o endereço restaura o mesmo conteúdo, e o "voltar" do navegador
+  percorre os passos reais da consulta.
+
+### Notas
+
+- Os textos da interface são em inglês, por decisão de produto — o público-alvo lê cartas e
+  fraseologia nesse idioma. É exceção registrada ao Princípio VI da constituição, com escopo
+  restrito às cadeias visíveis ao usuário final; documentação, comentários e mensagens de
+  commit permanecem em português do Brasil.
+- Os procedimentos de um aeródromo são buscados uma única vez e mantidos em cache sem
+  expiração: o acervo é publicado em ciclos AIRAC de 28 dias e não muda durante uma sessão,
+  então trocar de aba ou voltar ao aeródromo não gera tráfego novo.
+- Duas dependências estão deliberadamente abaixo da versão mais recente porque as atuais
+  exigem uma versão de Node acima da fixada pelo projeto, o que falha a instalação:
+  `react-router` permanece na 7.x e `jsdom` na 29.x.
+- Nenhuma alteração na API foi necessária.
+
 ## [0.5.1] - 2026-08-15
 
 A API passa a escutar na porta que a plataforma de hospedagem designa, e não em uma porta própria.
