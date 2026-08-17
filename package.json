@@ -18,7 +18,8 @@
     "test:watch": "pnpm -r --parallel test:watch",
     "test:coverage": "pnpm -r test:coverage",
     "build": "pnpm -r build",
-    "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm build && pnpm typecheck && pnpm test",
+    "build:web": "pnpm --filter @open-nav-charts/web... build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
