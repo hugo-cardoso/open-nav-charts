@@ -5,6 +5,17 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.1] - 2026-08-17
+
+A aplicação web ganha um comando de build próprio, para que a implantação não precise construir o
+monorepo inteiro.
+
+### Adicionado
+
+- Script `build:web` na raiz, que constrói `apps/web` junto apenas dos pacotes do workspace de que
+  ela depende. O `build` geral continua existindo e percorrendo todos os pacotes; o novo comando
+  serve à implantação do front-end, onde construir a API e os jobs é trabalho desperdiçado.
+
 ## [0.6.0] - 2026-08-16
 
 O acervo ganha uma interface própria: uma aplicação web que torna as cartas consultáveis por
