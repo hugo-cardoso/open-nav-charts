@@ -5,6 +5,43 @@ Todas as alterações notáveis deste projeto são registradas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto adere
 ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] - 2026-10-08
+
+A coleta do DECEA passa a ser incremental: catálogo e cartas chegam em duas consultas em lote, e só
+os aeródromos que mudaram na fonte geram trabalho. Em regime estável a execução completa caiu de
+~7min30s para segundos.
+
+### Adicionado
+
+- **Consultas em lote** à AISWEB: o catálogo `AD` inteiro e todas as cartas IFR em uma requisição
+  cada, no lugar de uma consulta de cartas por aeródromo.
+- **Atalho por comparação**: aeródromos cujo cadastro, cartas e documentos não mudaram não geram
+  requisição à fonte nem escrita no banco.
+- **Revalidação das pistas** só quando necessária: aeródromo novo, data do registro ROTAER (`dt`)
+  alterada, mudança do ciclo AIRAC (`lastupdate`/`emenda`) ou mais de 7 dias desde a última coleta,
+  com no máximo 1000 revalidações por idade em cada execução.
+- Opções `--force`, `--revalidation-days` e `--revalidation-budget` na rotina `decea-crawler`.
+- Resumo com o indicador da fonte, a divisão gravados/inalterados/falhos, as revalidações por
+  motivo e o tempo por etapa.
+- Migração `0003`: colunas `runways_checked_at` e `source_updated_on` em `airport` e a tabela
+  `source_sync_state`.
+
+### Alterado
+
+- `--page-size` passa a ter padrão `5000`, cobrindo o catálogo inteiro em uma página.
+- A existência dos PDFs é conferida por uma listagem única do bucket, em vez de uma verificação por
+  carta.
+- `archived_at` das cartas passa a registrar quando o documento foi arquivado, e não a última
+  execução da coleta.
+- `--only` com ICAO fora do catálogo `AD` passa a ser registrado como falha no resumo.
+
+### Corrigido
+
+- Download das cartas recorre a `aisweb.decea.mil.br` quando o host dos links publicados
+  (`aisweb.decea.gov.br`) não responde por falha de rede.
+- O resumo de uma execução interrompida passa a mostrar o total do catálogo e os aeródromos não
+  iniciados.
+
 ## [0.6.1] - 2026-08-17
 
 A aplicação web ganha um comando de build próprio, para que a implantação não precise construir o
