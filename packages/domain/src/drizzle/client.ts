@@ -6,12 +6,16 @@ import pg from "pg";
 import type {
   AirportProcedureRepository,
   AirportRepository,
+  AirportSnapshotRepository,
   AirportSyncRepository,
+  SourceSyncStateRepository,
 } from "../repositories/index.js";
 import { DrizzleAirportProcedureRepository } from "./airport-procedure-repository.js";
 import { DrizzleAirportRepository } from "./airport-repository.js";
+import { DrizzleAirportSnapshotRepository } from "./airport-snapshot-repository.js";
 import { DrizzleAirportSyncRepository } from "./airport-sync-repository.js";
 import * as schema from "./schema.js";
+import { DrizzleSourceSyncStateRepository } from "./source-sync-state-repository.js";
 
 export interface DatabaseConfig {
   readonly url: string;
@@ -28,6 +32,10 @@ export interface Database {
   readonly airports: AirportRepository;
   readonly procedures: AirportProcedureRepository;
   readonly sync: AirportSyncRepository;
+  /** Retrato da base para a rotina de coleta. */
+  readonly snapshots: AirportSnapshotRepository;
+  /** Indicadores de atualização observados nas fontes. */
+  readonly syncState: SourceSyncStateRepository;
   /**
    * Verificação de conectividade para o indicador de saúde. Rejeita quando o
    * banco não responde; existe para que o consumidor não precise emitir SQL —
@@ -70,6 +78,8 @@ export function createDatabase(config: DatabaseConfig): Database {
     airports: new DrizzleAirportRepository(db),
     procedures: new DrizzleAirportProcedureRepository(db),
     sync: new DrizzleAirportSyncRepository(db),
+    snapshots: new DrizzleAirportSnapshotRepository(db),
+    syncState: new DrizzleSourceSyncStateRepository(db),
     ping: async () => {
       await db.execute(sql`select 1`);
     },
