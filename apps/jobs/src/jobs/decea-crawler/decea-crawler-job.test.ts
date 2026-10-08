@@ -1,3 +1,4 @@
+import type { IfrChartCatalog } from "@open-nav-charts/aisweb-client";
 import { PermanentSourceError, RetryableSourceError } from "@open-nav-charts/aisweb-client";
 import { describe, expect, it } from "vitest";
 import type { Clock } from "../../runtime/clock.js";
@@ -5,168 +6,346 @@ import { RetryPolicy } from "../../runtime/retry-policy.js";
 import { RunReport } from "../../runtime/run-report.js";
 import {
   airportDetails,
+  catalogEntry,
   chart,
   FakeAirportSyncRepository,
   FakeAisWebClient,
   type FakeAisWebOptions,
   FakeChartStorage,
+  FakeSourceSyncStateRepository,
   RecordingProgressReporter,
 } from "../../testing/doubles.js";
 import { ChartArchiver } from "./chart-archiver.js";
 import { ChartTypeAudit } from "./chart-type-audit.js";
-import { DeceaCrawlerJob } from "./decea-crawler-job.js";
+import { type CrawlerOptions, DeceaCrawlerJob } from "./decea-crawler-job.js";
 import { ProcessAirport } from "./process-airport.js";
 
-class InstantClock implements Clock {
-  private current = new Date("2026-08-15T10:00:00Z");
+const DAY = 24 * 60 * 60 * 1000;
+
+class ManualClock implements Clock {
+  private current = new Date("2026-10-08T03:00:00Z");
 
   now(): Date {
     return new Date(this.current);
   }
 
-  async sleep(milliseconds: number): Promise<void> {
+  advance(milliseconds: number): void {
     this.current = new Date(this.current.getTime() + milliseconds);
+  }
+
+  async sleep(milliseconds: number): Promise<void> {
+    this.advance(milliseconds);
   }
 }
 
-function build(
-  sourceOptions: FakeAisWebOptions,
-  jobOptions: {
-    pageSize?: number;
-    concurrency?: number;
-    maxAttempts?: number;
-    only?: readonly string[];
-    processAirport?: ProcessAirport;
-  } = {},
-) {
-  const client = new FakeAisWebClient(sourceOptions);
-  const repository = new FakeAirportSyncRepository();
-  const storage = new FakeChartStorage();
-  const clock = new InstantClock();
-  const report = new RunReport(clock.now());
-  const progress = new RecordingProgressReporter();
-  const audit = new ChartTypeAudit();
+const runways = [{ ident: "10/28", lengthMeters: 1500, widthMeters: 30 }];
 
-  const processAirport =
-    jobOptions.processAirport ??
-    new ProcessAirport({
+function ifrCharts(overrides: Partial<IfrChartCatalog> = {}): IfrChartCatalog {
+  return { lastUpdate: "2026-09-30 17:35:34", airacCycle: "2026-10-01", charts: [], ...overrides };
+}
+
+/**
+ * Fonte, base, bucket e relógio que sobrevivem entre execuções — é o que permite
+ * verificar o que a segunda execução deixa de fazer.
+ */
+class World {
+  readonly repository = new FakeAirportSyncRepository();
+  readonly storage = new FakeChartStorage();
+  readonly syncState = new FakeSourceSyncStateRepository();
+  readonly clock = new ManualClock();
+  source: FakeAisWebOptions;
+
+  constructor(source: FakeAisWebOptions) {
+    this.source = source;
+  }
+
+  build(options: Partial<CrawlerOptions> = {}, processAirport?: ProcessAirport) {
+    const client = new FakeAisWebClient(this.source);
+    const report = new RunReport(this.clock.now());
+    const progress = new RecordingProgressReporter();
+    const audit = new ChartTypeAudit();
+    const archiver = new ChartArchiver({ client, storage: this.storage });
+    const skipDocuments = options.skipDocuments ?? false;
+
+    const job = new DeceaCrawlerJob({
       client,
-      repository,
-      archiver: new ChartArchiver({ client, storage }),
-      audit,
+      processAirport:
+        processAirport ??
+        new ProcessAirport({
+          client,
+          repository: this.repository,
+          archiver,
+          report,
+          clock: this.clock,
+          skipDocuments,
+        }),
+      archiver,
+      snapshots: this.repository,
+      syncState: this.syncState,
+      sync: this.repository,
+      retry: new RetryPolicy({
+        clock: this.clock,
+        random: () => 0,
+        maxAttempts: 3,
+        baseDelayMs: 1,
+      }),
+      progress,
       report,
-      skipDocuments: false,
+      audit,
+      clock: this.clock,
+      options: {
+        pageSize: 5000,
+        concurrency: 4,
+        only: [],
+        force: false,
+        revalidationDays: 7,
+        revalidationBudget: 1000,
+        skipDocuments,
+        ...options,
+      },
     });
 
-  const job = new DeceaCrawlerJob({
-    client,
-    processAirport,
-    retry: new RetryPolicy({
-      clock,
-      random: () => 0,
-      maxAttempts: jobOptions.maxAttempts ?? 3,
-      baseDelayMs: 1,
-    }),
-    progress,
-    report,
-    audit,
-    clock,
-    options: {
-      pageSize: jobOptions.pageSize ?? 100,
-      concurrency: jobOptions.concurrency ?? 4,
-      only: jobOptions.only ?? [],
-    },
-  });
+    return { job, client, report, progress };
+  }
 
-  return { job, client, repository, storage, report, progress, audit };
+  async run(options: Partial<CrawlerOptions> = {}) {
+    const built = this.build(options);
+    await built.job.run(new AbortController().signal);
+    return built;
+  }
+}
+
+function twoAirports(): FakeAisWebOptions {
+  return {
+    catalog: [catalogEntry({ icao: "SBGL" }), catalogEntry({ icao: "SBSP" })],
+    airports: {
+      SBGL: airportDetails({ icao: "SBGL", runways }),
+      SBSP: airportDetails({ icao: "SBSP", runways }),
+    },
+    chartCatalog: ifrCharts({ charts: [chart({ id: "c1", airportIcao: "SBGL" })] }),
+  };
 }
 
 describe("DeceaCrawlerJob", () => {
   it("expõe nome e descrição do subcomando", () => {
-    const { job } = build({ icaosByPage: [[]] });
+    const { job } = new World({}).build();
 
     expect(job.name).toBe("decea-crawler");
     expect(job.description).toContain("DECEA");
   });
 
-  it("percorre todas as páginas, inclusive a última parcial", async () => {
-    const { job, client } = build(
-      { total: 5, icaosByPage: [["A1", "A2"], ["B1", "B2"], ["C1"]] },
-      { pageSize: 2 },
-    );
+  describe("atalho entre execuções (US1)", () => {
+    it("na primeira execução grava todos os aeródromos, com pistas, cartas e documentos", async () => {
+      const world = new World(twoAirports());
 
-    await job.run(new AbortController().signal);
+      const { client, report } = await world.run();
 
-    expect(client.fetchedAirports).toEqual(["A1", "A2", "B1", "B2", "C1"]);
-  });
+      expect(client.fetchedAirports.sort()).toEqual(["SBGL", "SBSP"]);
+      expect(world.repository.calls).toHaveLength(2);
+      expect(world.storage.putKeys).toEqual(["SBGL/c1.pdf"]);
+      expect(report.totals.airportsSucceeded).toBe(2);
+    });
 
-  it("encerra a paginação em página vazia mesmo com total maior", async () => {
-    // Protege contra catálogo que muda durante a varredura e contra laço infinito.
-    const { job, client } = build({ total: 1000, icaosByPage: [["A1"], []] }, { pageSize: 1 });
+    it("na segunda execução sem mudança na fonte não grava nada nem consulta detalhamento", async () => {
+      const world = new World(twoAirports());
+      await world.run();
+      world.repository.calls.length = 0;
+      world.clock.advance(DAY);
 
-    await job.run(new AbortController().signal);
+      const { client, report } = await world.run();
 
-    expect(client.fetchedAirports).toEqual(["A1"]);
-  });
+      expect(client.fetchedAirports).toEqual([]);
+      expect(client.downloadedCharts).toEqual([]);
+      expect(world.repository.calls).toEqual([]);
+      expect(report.totals.airportsUnchanged).toBe(2);
+    });
 
-  it("respeita o limite de concorrência dentro da página", async () => {
-    let active = 0;
-    let peak = 0;
-    const processAirport = {
-      execute: async (icao: string) => {
-        active += 1;
-        peak = Math.max(peak, active);
-        await new Promise((resolve) => setImmediate(resolve));
-        active -= 1;
-        return {
-          icao,
-          name: icao,
-          proceduresPersisted: 0,
-          documentsArchived: 0,
-          documentsAlreadyPresent: 0,
-          documentsRemoved: 0,
-        };
-      },
-    } as unknown as ProcessAirport;
-    const { job } = build(
-      { total: 12, icaosByPage: [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]] },
-      { pageSize: 12, concurrency: 4, processAirport },
-    );
+    it("usa as consultas em lote, e não uma consulta de cartas por aeródromo", async () => {
+      const world = new World(twoAirports());
 
-    await job.run(new AbortController().signal);
+      const { client } = await world.run();
 
-    expect(peak).toBeLessThanOrEqual(4);
-    expect(peak).toBe(4);
-  });
+      expect(client.catalogRequests).toEqual([{ offset: 0, limit: 5000 }]);
+      expect(client.chartCatalogRequests).toBe(1);
+    });
 
-  it("não interrompe a varredura quando um aeródromo falha em definitivo", async () => {
-    const { job, client, report } = build(
-      {
-        total: 3,
-        icaosByPage: [["SBGR", "SBXX", "SBSP"]],
+    it("pagina o catálogo quando ele passa do tamanho de página", async () => {
+      const world = new World({
+        catalog: ["SBAA", "SBBB", "SBCC", "SBDD", "SBEE"].map((icao) => catalogEntry({ icao })),
+        chartCatalog: ifrCharts(),
+      });
+
+      const { client } = await world.run({ pageSize: 2 });
+
+      expect(client.catalogRequests.map((request) => request.offset)).toEqual([0, 2, 4]);
+      expect(world.repository.calls).toHaveLength(5);
+    });
+
+    it("registra o indicador e o ciclo AIRAC do lote de cartas", async () => {
+      const world = new World(twoAirports());
+
+      await world.run();
+
+      expect(world.syncState.observations[0]?.value).toEqual({
+        lastUpdate: "2026-09-30 17:35:34",
+        airacCycle: "2026-10-01",
+      });
+    });
+
+    it("revalida as pistas de todos quando o ciclo AIRAC muda, marcando em lote os que não mudaram", async () => {
+      const world = new World(twoAirports());
+      await world.run();
+      world.repository.calls.length = 0;
+      world.clock.advance(DAY);
+      world.source = {
+        ...world.source,
+        chartCatalog: ifrCharts({
+          airacCycle: "2026-10-29",
+          charts: [chart({ id: "c1", airportIcao: "SBGL" })],
+        }),
+      };
+
+      const { client } = await world.run();
+
+      expect(client.fetchedAirports.sort()).toEqual(["SBGL", "SBSP"]);
+      expect(world.repository.calls).toEqual([]);
+      expect(world.repository.markedChecks.map((check) => check.icao).sort()).toEqual([
+        "SBGL",
+        "SBSP",
+      ]);
+    });
+
+    it("grava só o aeródromo cujo cadastro mudou, sem consultar o detalhamento", async () => {
+      const world = new World(twoAirports());
+      await world.run();
+      world.repository.calls.length = 0;
+      world.clock.advance(DAY);
+      world.source = {
+        ...world.source,
+        catalog: [
+          catalogEntry({ icao: "SBGL", name: "Novo nome" }),
+          catalogEntry({ icao: "SBSP" }),
+        ],
+      };
+
+      const { client } = await world.run();
+
+      expect(client.fetchedAirports).toEqual([]);
+      expect(world.repository.calls.map((call) => call.airport.name)).toEqual(["Novo nome"]);
+    });
+
+    it("baixa de novo o documento que sumiu do bucket", async () => {
+      const world = new World(twoAirports());
+      await world.run();
+      world.storage.objects.clear();
+
+      const { client } = await world.run();
+
+      expect(client.downloadedCharts).toEqual(["c1"]);
+    });
+
+    it("mantém pendente na execução seguinte o aeródromo cujo detalhamento falhou", async () => {
+      let attempts = 0;
+      const world = new World({
+        catalog: [catalogEntry({ icao: "SI5J" })],
         airports: {
-          SBXX: () => {
-            throw new PermanentSourceError("XML malformado");
+          SI5J: () => {
+            attempts += 1;
+            throw new PermanentSourceError("a fonte não publica detalhamento");
           },
         },
-      },
-      { pageSize: 3, concurrency: 1 },
-    );
+        chartCatalog: ifrCharts(),
+      });
 
-    const result = await job.run(new AbortController().signal);
+      const first = await world.run();
+      world.clock.advance(DAY);
+      await world.run();
 
-    expect(client.fetchedAirports).toEqual(["SBGR", "SBXX", "SBSP"]);
-    expect(result.totals.airportsSucceeded).toBe(2);
-    expect(result.totals.airportsFailed).toBe(1);
-    expect(report.failures[0]?.icao).toBe("SBXX");
+      expect(attempts).toBe(2);
+      expect(first.report.failures.map((failure) => failure.icao)).toEqual(["SI5J"]);
+      expect(world.repository.calls).toEqual([]);
+    });
+
+    it("revalida todos em --force", async () => {
+      const world = new World(twoAirports());
+      await world.run();
+      world.repository.calls.length = 0;
+
+      const { client } = await world.run({ force: true });
+
+      expect(client.fetchedAirports.sort()).toEqual(["SBGL", "SBSP"]);
+    });
+
+    it("restringe a --only e registra como falha o ICAO fora do catálogo", async () => {
+      const world = new World(twoAirports());
+
+      const { client, report } = await world.run({ only: ["SBSP", "SBEN"] });
+
+      expect(client.fetchedAirports).toEqual(["SBSP"]);
+      expect(world.repository.calls.map((call) => call.airport.icao)).toEqual(["SBSP"]);
+      expect(report.failures).toEqual([
+        { icao: "SBEN", reason: "não consta no catálogo AD da fonte" },
+      ]);
+    });
+
+    it("não grava cartas de aeródromos fora do catálogo", async () => {
+      const world = new World({
+        ...twoAirports(),
+        chartCatalog: ifrCharts({
+          charts: [
+            chart({ id: "c1", airportIcao: "SBGL" }),
+            chart({ id: "x1", airportIcao: "SBEN" }),
+          ],
+        }),
+      });
+
+      const { report } = await world.run();
+
+      const procedures = world.repository.calls.flatMap((call) => call.procedures);
+      expect(procedures.map((procedure) => procedure.id)).toEqual(["c1"]);
+      expect(report.totals.chartsOutsideCatalog).toBe(1);
+    });
   });
 
-  it("repete o aeródromo em erro retentável e registra o sucesso", async () => {
-    let attempts = 0;
-    const { job, report, progress } = build(
-      {
-        total: 1,
-        icaosByPage: [["SBGL"]],
+  describe("falhas e tentativas", () => {
+    it("encerra sem gravar nada quando o lote de cartas falha em definitivo", async () => {
+      const world = new World({
+        ...twoAirports(),
+        chartCatalog: () => {
+          throw new PermanentSourceError("XML malformado");
+        },
+      });
+
+      await expect(world.build().job.run(new AbortController().signal)).rejects.toBeInstanceOf(
+        PermanentSourceError,
+      );
+      expect(world.repository.calls).toEqual([]);
+      expect(world.syncState.observations).toEqual([]);
+    });
+
+    it("repete o lote de cartas em erro retentável", async () => {
+      let attempts = 0;
+      const world = new World({
+        ...twoAirports(),
+        chartCatalog: () => {
+          attempts += 1;
+          if (attempts < 2) {
+            throw new RetryableSourceError("lote truncado");
+          }
+          return ifrCharts();
+        },
+      });
+
+      await world.run();
+
+      expect(attempts).toBe(2);
+      expect(world.repository.calls).toHaveLength(2);
+    });
+
+    it("repete o aeródromo em erro retentável e registra o sucesso", async () => {
+      let attempts = 0;
+      const world = new World({
+        catalog: [catalogEntry({ icao: "SBGL" })],
         airports: {
           SBGL: () => {
             attempts += 1;
@@ -176,144 +355,195 @@ describe("DeceaCrawlerJob", () => {
             return airportDetails({ icao: "SBGL" });
           },
         },
-      },
-      { pageSize: 1 },
-    );
+        chartCatalog: ifrCharts(),
+      });
 
-    await job.run(new AbortController().signal);
+      const { report, progress } = await world.run();
 
-    expect(attempts).toBe(3);
-    expect(report.totals.airportsSucceeded).toBe(1);
-    expect(progress.lines.filter((line) => line.startsWith("retry"))).toHaveLength(2);
-  });
+      expect(attempts).toBe(3);
+      expect(report.totals.airportsSucceeded).toBe(1);
+      expect(progress.lines.filter((line) => line.startsWith("retry SBGL"))).toHaveLength(2);
+    });
 
-  it("registra a falha após esgotar as 3 tentativas", async () => {
-    const { job, report, progress } = build(
-      {
-        total: 1,
-        icaosByPage: [["SBXX"]],
+    it("não interrompe a varredura quando um aeródromo falha em definitivo", async () => {
+      const world = new World({
+        ...twoAirports(),
         airports: {
-          SBXX: () => {
-            throw new RetryableSourceError("timeout");
+          SBGL: () => {
+            throw new PermanentSourceError("XML malformado");
           },
         },
-      },
-      { pageSize: 1 },
-    );
+      });
 
-    const result = await job.run(new AbortController().signal);
+      const { report, progress } = await world.run();
 
-    expect(result.totals.airportsFailed).toBe(1);
-    expect(report.failures[0]?.reason).toContain("timeout");
-    expect(progress.lines.some((line) => line.startsWith("fail SBXX"))).toBe(true);
+      expect(report.totals.airportsFailed).toBe(1);
+      expect(report.totals.airportsSucceeded).toBe(1);
+      expect(progress.lines.some((line) => line.startsWith("fail SBGL"))).toBe(true);
+    });
+
+    it("para de iniciar aeródromos novos após a interrupção", async () => {
+      const world = new World({
+        catalog: ["SBAA", "SBBB", "SBCC"].map((icao) => catalogEntry({ icao })),
+        chartCatalog: ifrCharts(),
+      });
+      const controller = new AbortController();
+      const processed: string[] = [];
+      const processAirport = {
+        execute: async (plan: { entry: { icao: string; name: string } }) => {
+          processed.push(plan.entry.icao);
+          controller.abort();
+          return {
+            icao: plan.entry.icao,
+            name: plan.entry.name,
+            result: "written",
+            runwaysCheck: null,
+            proceduresPersisted: 0,
+            documentsArchived: 0,
+            documentsAlreadyPresent: 0,
+            documentsRemoved: 0,
+          };
+        },
+      } as unknown as ProcessAirport;
+      const { job, progress } = world.build({ concurrency: 1 }, processAirport);
+
+      await job.run(controller.signal);
+
+      expect(processed).toEqual(["SBAA"]);
+      expect(progress.lines).toContain("interrupted");
+    });
   });
 
-  it("restringe a varredura aos ICAOs de --only, sem paginar", async () => {
-    const { job, client } = build(
-      { total: 4550, icaosByPage: [["A1", "A2"]] },
-      { only: ["SBGL", "SBGR"] },
-    );
+  describe("relatório", () => {
+    it("devolve o relatório acumulado ao término", async () => {
+      const world = new World(twoAirports());
+      const { job, report } = world.build();
 
-    await job.run(new AbortController().signal);
+      const result = await job.run(new AbortController().signal);
 
-    expect(client.fetchedAirports).toEqual(["SBGL", "SBGR"]);
+      expect(result).toBe(report);
+      expect(result.totals.proceduresPersisted).toBe(1);
+      expect(result.totals.documentsArchived).toBe(1);
+    });
+
+    it("registra o tempo de cada etapa e o indicador observado", async () => {
+      const world = new World(twoAirports());
+      // Cada leitura do relógio avança 10 ms: toda etapa medida passa a ter duração.
+      const now = world.clock.now.bind(world.clock);
+      world.clock.now = () => {
+        world.clock.advance(10);
+        return now();
+      };
+
+      const { report } = await world.run();
+
+      expect(Object.keys(report.phaseDurations).sort()).toEqual([
+        "catalog",
+        "charts",
+        "database",
+        "documents",
+        "runways",
+      ]);
+      for (const milliseconds of Object.values(report.phaseDurations)) {
+        expect(milliseconds).toBeGreaterThan(0);
+      }
+      expect(report.format(world.clock.now())).toContain("AIRAC 2026-10-01");
+    });
+
+    it("conta como falha de aeródromo, para o total do catálogo, o detalhamento que falhou", async () => {
+      const world = new World({
+        ...twoAirports(),
+        airports: {
+          SBGL: () => {
+            throw new PermanentSourceError("XML malformado");
+          },
+        },
+      });
+
+      const { report } = await world.run();
+
+      const totals = report.totals;
+      expect(totals.airportsWritten + totals.airportsUnchanged + totals.airportsFailed).toBe(2);
+    });
+
+    it("resume a distribuição de tipos desconhecidos no relatório", async () => {
+      const world = new World({
+        ...twoAirports(),
+        chartCatalog: ifrCharts({ charts: [chart({ id: "c1", type: "NOVO" })] }),
+      });
+
+      const { report } = await world.run();
+
+      expect(report.warnings.join("\n")).toContain("NOVO");
+    });
   });
 
-  it("reporta início com total, páginas e concorrência", async () => {
-    const { job, progress } = build(
-      { total: 5, icaosByPage: [["A1", "A2"], ["B1"]] },
-      {
-        pageSize: 2,
-        concurrency: 4,
-      },
-    );
+  describe("eficiência (US2)", () => {
+    function manyAirports(count: number): FakeAisWebOptions {
+      return {
+        catalog: Array.from({ length: count }, (_, index) =>
+          catalogEntry({ icao: `SB${String.fromCharCode(65 + index)}A` }),
+        ),
+        chartCatalog: ifrCharts(),
+        delayMs: 1,
+      };
+    }
 
-    await job.run(new AbortController().signal);
+    it("nunca tem mais de 4 requisições à fonte em voo", async () => {
+      const world = new World(manyAirports(20));
 
-    expect(progress.lines[0]).toBe("start 5 3 4");
-  });
+      const { client } = await world.run({ concurrency: 4 });
 
-  it("emite progresso por página e por aeródromo", async () => {
-    const { job, progress } = build(
-      {
-        total: 1,
-        icaosByPage: [["SBGL"]],
-        airports: { SBGL: airportDetails({ icao: "SBGL", name: "Galeão" }) },
-        charts: { SBGL: [chart({ id: "c1" })] },
-      },
-      { pageSize: 1 },
-    );
+      expect(client.fetchedAirports).toHaveLength(20);
+      expect(client.peakInFlight).toBe(4);
+    });
 
-    await job.run(new AbortController().signal);
+    it("não espera o aeródromo lento para começar os seguintes", async () => {
+      const world = new World(manyAirports(6));
+      const built = world.build({ concurrency: 2 });
+      // O primeiro aeródromo demora mais que os outros cinco juntos.
+      const slowIcao = "SBAA";
+      const fetchAirport = built.client.fetchAirport.bind(built.client);
+      built.client.fetchAirport = async (icao: string) => {
+        if (icao === slowIcao) {
+          await new Promise((resolve) => setTimeout(resolve, 40));
+        }
+        return fetchAirport(icao);
+      };
 
-    expect(progress.lines).toContain("page-start 1/1");
-    expect(progress.lines).toContain("ok SBGL Galeão 1");
-    expect(progress.lines.some((line) => line.startsWith("page-end 1/1"))).toBe(true);
-  });
+      await built.job.run(new AbortController().signal);
 
-  it("para de iniciar aeródromos novos após a interrupção", async () => {
-    const controller = new AbortController();
-    const processed: string[] = [];
-    const processAirport = {
-      execute: async (icao: string) => {
-        processed.push(icao);
-        controller.abort();
-        return {
-          icao,
-          name: icao,
-          proceduresPersisted: 0,
-          documentsArchived: 0,
-          documentsAlreadyPresent: 0,
-          documentsRemoved: 0,
-        };
-      },
-    } as unknown as ProcessAirport;
-    const { job, progress } = build(
-      {
-        total: 4,
-        icaosByPage: [
-          ["A", "B"],
-          ["C", "D"],
-        ],
-      },
-      { pageSize: 2, concurrency: 1, processAirport },
-    );
+      const finished = built.progress.lines
+        .filter((line) => line.startsWith("ok "))
+        .map((line) => line.split(" ")[1]);
+      expect(finished).toHaveLength(6);
+      expect(finished.at(-1)).toBe(slowIcao);
+    });
 
-    await job.run(controller.signal);
+    it("lê catálogo e cartas em paralelo", async () => {
+      const world = new World({ catalog: [], chartCatalog: ifrCharts(), delayMs: 5 });
 
-    expect(processed).toEqual(["A"]);
-    expect(progress.lines).toContain("interrupted");
-  });
+      const { client } = await world.run();
 
-  it("devolve o relatório acumulado ao término", async () => {
-    const { job, report } = build(
-      {
-        total: 1,
-        icaosByPage: [["SBGL"]],
-        charts: { SBGL: [chart({ id: "c1" }), chart({ id: "c2" })] },
-      },
-      { pageSize: 1 },
-    );
+      expect(client.peakInFlight).toBe(2);
+    });
 
-    const result = await job.run(new AbortController().signal);
+    it("lista o bucket uma vez e não verifica documento por documento", async () => {
+      const world = new World(twoAirports());
 
-    expect(result).toBe(report);
-    expect(result.totals.proceduresPersisted).toBe(2);
-    expect(result.totals.documentsArchived).toBe(2);
-  });
+      await world.run();
 
-  it("resume a distribuição de tipos desconhecidos no relatório", async () => {
-    const { job, report } = build(
-      {
-        total: 1,
-        icaosByPage: [["SBGL"]],
-        charts: { SBGL: [chart({ id: "c1", type: "NOVO" })] },
-      },
-      { pageSize: 1 },
-    );
+      expect(world.storage.listKeysCalls).toBe(1);
+      expect(world.storage.existsCalls).toBe(0);
+    });
 
-    await job.run(new AbortController().signal);
+    it("não lista o bucket em --skip-documents", async () => {
+      const world = new World(twoAirports());
 
-    expect(report.warnings.join("\n")).toContain("NOVO");
+      await world.run({ skipDocuments: true });
+
+      expect(world.storage.listKeysCalls).toBe(0);
+      expect(world.storage.putKeys).toEqual([]);
+    });
   });
 });

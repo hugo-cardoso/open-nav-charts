@@ -34,43 +34,71 @@ function clientWith(handler: (url: string) => Response | Promise<Response>): {
   };
 }
 
-const listXml = `<aisweb><rotaer total="4550"><item><AeroCode>SBGR</AeroCode></item></rotaer></aisweb>`;
 const airportXml = `<aisweb><AeroCode>SBGL</AeroCode><name>Galeão</name></aisweb>`;
 
 describe("HttpAisWebClient", () => {
   describe("montagem das requisições", () => {
-    it("envia credenciais, área e paginação na listagem", async () => {
-      const { client, urls } = clientWith(() => xmlResponse(listXml));
+    it("envia as credenciais em toda consulta", async () => {
+      const { client, urls } = clientWith(() => xmlResponse(airportXml));
 
-      await client.listAirportIcaos(200, 100);
+      await client.fetchAirport("SBGL");
 
       const url = new URL(urls[0] ?? "");
       expect(url.searchParams.get("apiKey")).toBe("chave");
       expect(url.searchParams.get("apiPass")).toBe("senha");
       expect(url.searchParams.get("area")).toBe("rotaer");
-      expect(url.searchParams.get("type")).toBe("AD");
-      expect(url.searchParams.get("rowstart")).toBe("200");
-      expect(url.searchParams.get("rowend")).toBe("100");
+      expect(url.searchParams.get("icaoCode")).toBe("SBGL");
     });
+  });
 
-    it("filtra cartas por especie=IFR, e não por tipo", async () => {
+  describe("consultas em lote", () => {
+    it("pede uma página do catálogo com área, tipo e paginação", async () => {
       const { client, urls } = clientWith(() =>
-        xmlResponse(`<aisweb><cartas total="0"></cartas></aisweb>`),
+        xmlResponse(
+          `<aisweb><rotaer total="4491"><item><AeroCode>SBGL</AeroCode><name>Galeão</name><dt>2026-10-08</dt></item></rotaer></aisweb>`,
+        ),
       );
 
-      await client.fetchIfrCharts("SBGL");
+      const page = await client.listAirports(0, 5000);
+
+      const url = new URL(urls[0] ?? "");
+      expect(url.searchParams.get("area")).toBe("rotaer");
+      expect(url.searchParams.get("type")).toBe("AD");
+      expect(url.searchParams.get("rowstart")).toBe("0");
+      expect(url.searchParams.get("rowend")).toBe("5000");
+      expect(page.total).toBe(4491);
+      expect(page.entries.map((entry) => entry.icao)).toEqual(["SBGL"]);
+    });
+
+    it("pede todas as cartas IFR sem aeródromo nem paginação", async () => {
+      const { client, urls } = clientWith(() =>
+        xmlResponse(
+          `<aisweb><cartas emenda=" 2026-10-01 " lastupdate=" {ts '2026-09-30 17:35:34'} " total="0"></cartas></aisweb>`,
+        ),
+      );
+
+      const catalog = await client.fetchIfrChartCatalog();
 
       const url = new URL(urls[0] ?? "");
       expect(url.searchParams.get("area")).toBe("cartas");
-      expect(url.searchParams.get("icaoCode")).toBe("SBGL");
       expect(url.searchParams.get("especie")).toBe("IFR");
+      expect(url.searchParams.get("icaoCode")).toBeNull();
+      // `especie` seleciona IFR/VFR; `tipo` é a sigla da carta, outra dimensão.
       expect(url.searchParams.get("tipo")).toBeNull();
+      expect(url.searchParams.get("rowstart")).toBeNull();
+      expect(url.searchParams.get("rowend")).toBeNull();
+      expect(catalog.lastUpdate).toBe("2026-09-30 17:35:34");
+      expect(catalog.airacCycle).toBe("2026-10-01");
     });
 
-    it("lê o total do catálogo sem trazer a página inteira", async () => {
-      const { client } = clientWith(() => xmlResponse(listXml));
+    it("classifica o status do lote de cartas como as demais consultas", async () => {
+      const unavailable = clientWith(() => xmlResponse("", 503)).client;
+      const rejected = clientWith(() => xmlResponse("", 401)).client;
 
-      expect(await client.countAirports()).toBe(4550);
+      await expect(unavailable.fetchIfrChartCatalog()).rejects.toBeInstanceOf(RetryableSourceError);
+      await expect(rejected.fetchIfrChartCatalog()).rejects.toBeInstanceOf(
+        AuthenticationSourceError,
+      );
     });
   });
 
@@ -164,6 +192,30 @@ describe("HttpAisWebClient", () => {
       const url = new URL(urls[0] ?? "");
       expect(url.searchParams.get("arquivo")).toBe("abc123");
       expect(url.searchParams.get("apikey")).toBe("chave");
+    });
+
+    it("recorre à URL derivada quando o host do link não responde", async () => {
+      // Observado em 2026-10-08: `aisweb.decea.gov.br`, host dos links, deixou de
+      // resolver em parte dos DNS públicos, enquanto `aisweb.decea.mil.br` responde.
+      const { client, urls } = clientWith((url) => {
+        if (url.startsWith("https://aisweb.decea.gov.br")) {
+          throw new TypeError("fetch failed");
+        }
+        return new Response(new Uint8Array([7]));
+      });
+
+      const content = await client.downloadChart(chart);
+
+      expect(urls).toHaveLength(2);
+      expect(new URL(urls[1] ?? "").host).toBe("aisweb.decea.mil.br");
+      expect([...content]).toEqual([7]);
+    });
+
+    it("não troca de URL quando o link responde com erro HTTP", async () => {
+      const { client, urls } = clientWith(() => new Response("erro", { status: 503 }));
+
+      await expect(client.downloadChart(chart)).rejects.toBeInstanceOf(RetryableSourceError);
+      expect(urls).toHaveLength(1);
     });
 
     it("trata 500 no download como retentável", async () => {

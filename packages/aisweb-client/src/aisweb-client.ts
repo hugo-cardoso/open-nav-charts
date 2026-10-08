@@ -33,10 +33,47 @@ export interface ChartSummary {
   readonly link: string | null;
 }
 
+/**
+ * Um aeródromo do catálogo em lote (`area=rotaer&type=AD`). Traz os mesmos dados
+ * cadastrais do detalhamento, menos as pistas (research R3).
+ */
+export interface AirportCatalogEntry {
+  readonly icao: string;
+  readonly name: string;
+  readonly city: string | null;
+  readonly state: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  /**
+   * `<dt>` do registro ROTAER (`AAAA-MM-DD`): data da última alteração do
+   * aeródromo, igual na listagem e no detalhamento. `null` se ausente.
+   */
+  readonly updatedOn: string | null;
+}
+
+export interface AirportCatalogPage {
+  /** `rotaer/@total`: o tamanho do catálogo inteiro, não da página. */
+  readonly total: number;
+  readonly entries: readonly AirportCatalogEntry[];
+  /** Itens descartados por falta de `AeroCode` ou `name`, descritos para o resumo. */
+  readonly rejected: readonly string[];
+}
+
+/** Todas as cartas IFR publicadas, numa só consulta (research R2). */
+export interface IfrChartCatalog {
+  /** `lastupdate` normalizado (`AAAA-MM-DD HH:MM:SS`); global ao conjunto IFR. */
+  readonly lastUpdate: string | null;
+  /** `emenda` normalizada: data do ciclo AIRAC vigente. */
+  readonly airacCycle: string | null;
+  readonly charts: readonly ChartSummary[];
+}
+
 export interface AisWebClient {
-  countAirports(): Promise<number>;
-  listAirportIcaos(offset: number, limit: number): Promise<readonly string[]>;
+  /** Uma página do catálogo `type=AD`, já com os dados cadastrais. */
+  listAirports(offset: number, limit: number): Promise<AirportCatalogPage>;
+  /** Todas as cartas IFR. Lança erro retentável se a resposta vier truncada. */
+  fetchIfrChartCatalog(): Promise<IfrChartCatalog>;
+  /** Detalhamento de um aeródromo; a rotina o consulta só pelas pistas. */
   fetchAirport(icao: string): Promise<AirportDetails>;
-  fetchIfrCharts(icao: string): Promise<readonly ChartSummary[]>;
   downloadChart(chart: ChartSummary): Promise<Uint8Array>;
 }

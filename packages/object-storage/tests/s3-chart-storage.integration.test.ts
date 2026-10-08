@@ -61,6 +61,11 @@ describe("S3ChartStorage (integração)", () => {
     await container?.stop();
   });
 
+  it("lista um bucket vazio como conjunto vazio", async () => {
+    // Roda antes de qualquer gravação: o bucket acabou de ser criado.
+    expect((await storage.listKeys()).size).toBe(0);
+  });
+
   it("monta a chave como <ICAO>/<id>.pdf", () => {
     expect(storage.buildKey("sbgl", "abc123")).toBe("SBGL/abc123.pdf");
   });
@@ -103,6 +108,22 @@ describe("S3ChartStorage (integração)", () => {
     await expect(storage.put(key, new Uint8Array())).rejects.toBeInstanceOf(InvalidPdfContentError);
     expect(await storage.exists(key)).toBe(false);
   });
+
+  it("lista todas as chaves do bucket, atravessando mais de uma página", async () => {
+    // Prefixo exclusivo: os demais testes compartilham o bucket.
+    const keys = Array.from({ length: 1005 }, (_, index) =>
+      storage.buildKey("SLST", `carta-${String(index).padStart(4, "0")}`),
+    );
+    for (let start = 0; start < keys.length; start += 50) {
+      await Promise.all(keys.slice(start, start + 50).map((key) => storage.put(key, pdf())));
+    }
+
+    const listed = await storage.listKeys();
+
+    const ours = [...listed].filter((key) => key.startsWith("SLST/"));
+    expect(ours).toHaveLength(1005);
+    expect(new Set(ours)).toEqual(new Set(keys));
+  }, 120_000);
 
   it("apagar objeto inexistente não falha", async () => {
     await expect(

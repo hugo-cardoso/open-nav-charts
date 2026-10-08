@@ -86,7 +86,12 @@ export function buildProgram(): Command {
   program
     .command("decea-crawler")
     .description("Coleta aeródromos, cartas IFR e documentos do DECEA")
-    .option("--page-size <n>", "tamanho da página do catálogo", positiveInteger("--page-size"), 100)
+    .option(
+      "--page-size <n>",
+      "tamanho da página do catálogo; o padrão cobre o catálogo inteiro numa página",
+      positiveInteger("--page-size"),
+      5000,
+    )
     .option(
       "--concurrency <n>",
       "aeródromos processados simultaneamente",
@@ -95,7 +100,25 @@ export function buildProgram(): Command {
     )
     .option("--max-attempts <n>", "tentativas por aeródromo", positiveInteger("--max-attempts"), 3)
     .option("--skip-documents", "coleta metadados sem baixar os PDFs", false)
-    .option("--only <ICAO,ICAO>", "restringe a varredura aos ICAOs informados", icaoList, [])
+    .option(
+      "--only <ICAO,ICAO>",
+      "restringe a varredura aos ICAOs informados, sempre revalidando as pistas deles",
+      icaoList,
+      [],
+    )
+    .option("--force", "ignora o atalho: revalida as pistas de todos os aeródromos", false)
+    .option(
+      "--revalidation-days <n>",
+      "idade, em dias, a partir da qual as pistas de um aeródromo são revalidadas",
+      positiveInteger("--revalidation-days"),
+      7,
+    )
+    .option(
+      "--revalidation-budget <n>",
+      "máximo de aeródromos revalidados por idade em uma execução",
+      positiveInteger("--revalidation-budget"),
+      1000,
+    )
     .action(
       async (
         options: {
@@ -104,6 +127,9 @@ export function buildProgram(): Command {
           maxAttempts: number;
           skipDocuments: boolean;
           only: readonly string[];
+          force: boolean;
+          revalidationDays: number;
+          revalidationBudget: number;
         },
         command: Command,
       ) => {
@@ -116,6 +142,9 @@ export function buildProgram(): Command {
             maxAttempts: options.maxAttempts,
             skipDocuments: options.skipDocuments,
             only: options.only,
+            force: options.force,
+            revalidationDays: options.revalidationDays,
+            revalidationBudget: options.revalidationBudget,
           },
         });
       },

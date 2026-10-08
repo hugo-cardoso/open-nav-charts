@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { z } from "zod";
-import type { ChartSummary } from "../aisweb-client.js";
+import type { ChartSummary, IfrChartCatalog } from "../aisweb-client.js";
 import { PermanentSourceError, RetryableSourceError } from "../errors.js";
 import { toArray, toNullableText, unescapeXmlEntities } from "./xml-utils.js";
 
@@ -9,11 +9,16 @@ const chartsSchema = z.object({
     cartas: z
       .object({
         "@_total": z.coerce.number().int().nonnegative().optional(),
+        "@_lastupdate": z.unknown().optional(),
+        "@_emenda": z.unknown().optional(),
         item: z.unknown().optional(),
       })
       .optional(),
   }),
 });
+
+/** `{ts '2026-09-30 17:35:34'}`, como a fonte publica o atributo `lastupdate`. */
+const LAST_UPDATE_PATTERN = /^\{ts\s+'([^']+)'\}$/;
 
 const itemSchema = z.object({
   id: z.unknown().optional(),
@@ -34,32 +39,41 @@ export class ChartsParser {
     cdataPropName: "__cdata",
   });
 
-  parse(xml: string, icao: string): readonly ChartSummary[] {
+  /**
+   * Todas as cartas IFR de uma vez (research R2). Sem aeródromo na consulta,
+   * o `<IcaoCode>` de cada item é o único vínculo com o aeródromo — por isso é
+   * obrigatório aqui, ao contrário da consulta por aeródromo.
+   */
+  parseCatalog(xml: string): IfrChartCatalog {
     const parsed = chartsSchema.safeParse(this.parseXml(xml));
     if (!parsed.success) {
-      throw new PermanentSourceError(`resposta de cartas de ${icao} em formato inesperado`);
+      throw new PermanentSourceError("resposta do lote de cartas IFR em formato inesperado");
     }
 
     const cartas = parsed.data.aisweb.cartas;
-    const items = toArray(cartas?.item);
-    const charts = items.map((item) => this.toChart(item, icao));
+    const charts = toArray(cartas?.item).map((item) => this.toChart(item));
 
-    // `total` divergente da contagem indica resposta truncada — a fonte não
-    // entregou tudo, então repetir vale a pena (contrato da operação 3).
+    // Truncamento aqui faria cartas parecerem retiradas de vigência em todos os
+    // aeródromos — mais grave que na consulta por aeródromo, e igualmente
+    // retentável.
     const announced = cartas?.["@_total"];
     if (announced !== undefined && announced !== charts.length) {
       throw new RetryableSourceError(
-        `cartas de ${icao}: fonte anunciou ${announced} itens e entregou ${charts.length}`,
+        `lote de cartas IFR: fonte anunciou ${announced} itens e entregou ${charts.length}`,
       );
     }
 
-    return charts;
+    return {
+      lastUpdate: parseLastUpdate(toNullableText(cartas?.["@_lastupdate"])),
+      airacCycle: toNullableText(cartas?.["@_emenda"]),
+      charts,
+    };
   }
 
-  private toChart(item: unknown, icao: string): ChartSummary {
+  private toChart(item: unknown): ChartSummary {
     const parsed = itemSchema.safeParse(item);
     if (!parsed.success) {
-      throw new PermanentSourceError(`carta de ${icao} em formato inesperado`);
+      throw new PermanentSourceError("carta do lote IFR em formato inesperado");
     }
 
     const id = toNullableText(parsed.data.id);
@@ -67,15 +81,20 @@ export class ChartsParser {
     const type = toNullableText(parsed.data.tipo);
     if (id === null || name === null || type === null) {
       throw new PermanentSourceError(
-        `carta de ${icao} sem id, nome ou tipo: ${JSON.stringify({ id, name, type })}`,
+        `carta do lote IFR sem id, nome ou tipo: ${JSON.stringify({ id, name, type })}`,
       );
+    }
+
+    const airportIcao = toNullableText(parsed.data.IcaoCode)?.toUpperCase() ?? null;
+    if (airportIcao === null) {
+      throw new PermanentSourceError(`carta ${id} do lote IFR sem IcaoCode`);
     }
 
     const link = toNullableText(parsed.data.link);
 
     return {
       id,
-      airportIcao: toNullableText(parsed.data.IcaoCode)?.toUpperCase() ?? icao,
+      airportIcao,
       name,
       type: type.toUpperCase(),
       // A emenda por carta é o <amdt> do item; o atributo `emenda` do envelope
@@ -92,4 +111,13 @@ export class ChartsParser {
       throw new PermanentSourceError("XML malformado na resposta de cartas", { cause });
     }
   }
+}
+
+/** Extrai a data/hora de `{ts '…'}`; outro formato vira `null` (research R5). */
+function parseLastUpdate(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+  const match = LAST_UPDATE_PATTERN.exec(value);
+  return match?.[1]?.trim() ?? null;
 }

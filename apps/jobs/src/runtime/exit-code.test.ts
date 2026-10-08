@@ -11,6 +11,9 @@ describe("exitCodeForReport", () => {
     report.recordSuccess({
       icao: "SBGL",
       name: "Galeão",
+      result: "written",
+      runwaysCheck: null,
+      runwaysReason: null,
       proceduresPersisted: 1,
       documentsArchived: 1,
       documentsAlreadyPresent: 0,

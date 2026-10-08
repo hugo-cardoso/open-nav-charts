@@ -142,12 +142,12 @@ pendente — não há estado de progresso a recuperar.
 Emitido continuamente, para se localizar o ponto da varredura sem consultar a banco de dados:
 
 ```text
-[decea-crawler] Iniciando. 4441 aeródromos em 45 páginas, 4 simultâneos.
-[decea-crawler] Página 1/45 iniciada.
+[decea-crawler] Iniciando, 4 simultâneos. Lendo catálogo, cartas, base e bucket.
+[decea-crawler] Fonte lida: 4491 aeródromos, 1807 cartas IFR.
+[decea-crawler] 12 aeródromos a processar, 4479 inalterados.
 [decea-crawler] SBGR  Guarulhos - Governador André Franco Montoro 62 cartas  ok
 [decea-crawler] SBXX  ---                            tentativa 2/3: timeout
 [decea-crawler] SBXX  ---                            FALHA: timeout após 3 tentativas
-[decea-crawler] Página 1/45 concluída em 34s.
 ```
 
 ### Resumo final
@@ -156,14 +156,25 @@ Sempre emitido ao término, inclusive em interrupção:
 
 ```text
 [decea-crawler] Resumo
-  Aeródromos processados : 4441
-    sucesso              : 4439
-    falha                : 2
-  Cartas persistidas     : 1743
-  Documentos arquivados  : 1145
-  Documentos já existentes: 30059
-  Documentos removidos   : 12
-  Duração                : 10m12s
+  Duração total            : 58s
+  Fonte                    : lastupdate 2026-09-30 17:35:34 · AIRAC 2026-10-01 (observado em 2026-09-30)
+  Aeródromos no catálogo   : 4491
+    gravados               : 3
+    inalterados            : 4486
+    falhos                 : 2
+  Pistas revalidadas       : 1002 (pendentes: 2 · idade: 1000)
+  Cartas persistidas       : 12
+  Cartas fora do catálogo  : 63
+  Documentos arquivados    : 1
+  Documentos já existentes : 11
+  Documentos removidos     : 0
+
+  Tempo por etapa (soma das linhas de trabalho):
+    catálogo               : 6,4s
+    cartas                 : 4,8s
+    pistas                 : 3m21s
+    documentos             : 0,9s
+    banco                  : 2,1s
 
   Falhas:
     SI5J — a fonte não publica detalhamento para este aeródromo (resposta vazia)

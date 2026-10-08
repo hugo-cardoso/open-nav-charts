@@ -130,11 +130,17 @@ As migrações do banco de dados são aplicadas automaticamente na inicializaç�
 
 | Opção | Padrão | Finalidade |
 | ----- | ------ | ---------- |
-| `--page-size <n>` | `100` | Tamanho da página do catálogo |
+| `--page-size <n>` | `5000` | Tamanho da página do catálogo (o padrão cobre o catálogo inteiro) |
 | `--concurrency <n>` | `4` | Aeródromos processados em simultâneo |
 | `--max-attempts <n>` | `3` | Tentativas por aeródromo |
-| `--skip-documents` | desligado | Coleta metadados sem descarregar os PDFs |
+| `--skip-documents` | desligado | Coleta metadados sem baixar os PDFs |
 | `--only <ICAO,ICAO>` | — | Restringe a varredura aos ICAOs indicados |
+| `--force` | desligado | Ignora o atalho e revalida as pistas de todos os aeródromos |
+| `--revalidation-days <n>` | `7` | Idade a partir da qual as pistas de um aeródromo são revalidadas |
+| `--revalidation-budget <n>` | `1000` | Máximo de revalidações por idade numa execução |
+
+A coleta é incremental: só os aeródromos que mudaram na fonte geram trabalho. Detalhes em
+[`apps/jobs/src/jobs/decea-crawler/README.md`](apps/jobs/src/jobs/decea-crawler/README.md).
 
 ```bash
 # Verificação rápida contra um aeródromo conhecido

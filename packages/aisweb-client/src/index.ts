@@ -1,7 +1,10 @@
 export type {
+  AirportCatalogEntry,
+  AirportCatalogPage,
   AirportDetails,
   AisWebClient,
   ChartSummary,
+  IfrChartCatalog,
   RunwayDetails,
 } from "./aisweb-client.js";
 export { BRAZIL_COUNTRY_CODE } from "./aisweb-client.js";
