@@ -1,68 +1,114 @@
-import {
-  type AirportDetails,
-  type AisWebClient,
-  BRAZIL_COUNTRY_CODE,
-  type ChartSummary,
-} from "@open-nav-charts/aisweb-client";
-import type { Airport, AirportProcedure, AirportSyncRepository } from "@open-nav-charts/domain";
+import type { AisWebClient, ChartSummary } from "@open-nav-charts/aisweb-client";
+import type {
+  Airport,
+  AirportRunway,
+  AirportSyncRepository,
+  RunwaysCheckOf,
+} from "@open-nav-charts/domain";
+import type { Clock } from "../../runtime/clock.js";
 import type { AirportOutcome, RunReport } from "../../runtime/run-report.js";
+import { sameRunways, toAirport, toProcedure } from "./airport-comparison.js";
 import type { ChartArchiver } from "./chart-archiver.js";
-import type { ChartTypeAudit } from "./chart-type-audit.js";
+import type { AirportPlan } from "./sync-planner.js";
 
 export interface ProcessAirportOptions {
   readonly client: AisWebClient;
   readonly repository: AirportSyncRepository;
   readonly archiver: ChartArchiver;
-  readonly audit: ChartTypeAudit;
   readonly report: RunReport;
+  readonly clock: Clock;
   readonly skipDocuments: boolean;
 }
 
 /**
- * Unidade atômica de retry: detalhamento, cartas e documentos de um ICAO
- * (research R7). É reexecutável e idempotente, então repetir não duplica —
- * e a classe não sabe que está sendo repetida.
+ * Unidade atômica de retry: executa o que o plano decidiu para um aeródromo —
+ * revalidar as pistas, gravar, ou os dois (research R4). É reexecutável e
+ * idempotente, então repetir não duplica — e a classe não sabe que está sendo
+ * repetida.
  */
 export class ProcessAirport {
   private readonly client: AisWebClient;
   private readonly repository: AirportSyncRepository;
   private readonly archiver: ChartArchiver;
-  private readonly audit: ChartTypeAudit;
   private readonly report: RunReport;
+  private readonly clock: Clock;
   private readonly skipDocuments: boolean;
 
   constructor(options: ProcessAirportOptions) {
     this.client = options.client;
     this.repository = options.repository;
     this.archiver = options.archiver;
-    this.audit = options.audit;
     this.report = options.report;
+    this.clock = options.clock;
     this.skipDocuments = options.skipDocuments;
   }
 
-  async execute(icao: string, signal: AbortSignal): Promise<AirportOutcome> {
+  async execute(plan: AirportPlan, signal: AbortSignal): Promise<AirportOutcome> {
     signal.throwIfAborted();
+    const { entry, snapshot } = plan;
 
-    const details = await this.client.fetchAirport(icao);
-    const charts = await this.client.fetchIfrCharts(icao);
-    this.auditChartTypes(icao, charts);
+    // O catálogo em lote já trouxe o cadastro; o detalhamento só é consultado
+    // pelas pistas, e só quando o plano manda (research R3, R5).
+    let runways: readonly AirportRunway[] = snapshot?.airport.runways ?? [];
+    let runwaysCheck: RunwaysCheckOf | null = null;
+    if (plan.runwaysReason !== null) {
+      const details = await this.report.time("runways", this.clock, () =>
+        this.client.fetchAirport(entry.icao),
+      );
+      runways = details.runways;
+      runwaysCheck = { icao: entry.icao, at: this.clock.now(), sourceUpdatedOn: entry.updatedOn };
+
+      const unchanged =
+        snapshot !== undefined &&
+        plan.writeReasons.length === 0 &&
+        sameRunways(runways, snapshot.airport.runways);
+      if (unchanged) {
+        // Nada a gravar além da marcação, que a rotina faz em lote.
+        return {
+          ...emptyOutcome(entry.icao, entry.name),
+          result: "runways-confirmed",
+          runwaysCheck,
+          runwaysReason: plan.runwaysReason,
+        };
+      }
+    }
 
     // 1. Arquivar no bucket antes de tocar no banco.
-    const archived = await this.archiveDocuments(icao, charts, signal);
+    const archived = await this.report.time("documents", this.clock, () =>
+      this.archiveDocuments(entry.icao, plan.charts, signal),
+    );
 
-    // 2. Uma transação: aeródromo, pistas e diff das cartas.
-    const airport = this.toAirport(icao, details);
-    const procedures = charts.map((chart) => this.toProcedure(chart, archived.keys.get(chart.id)));
-    const { removedProcedureIds } = await this.repository.syncAirport({ airport, procedures });
+    // 2. Uma transação: aeródromo, pistas, diff das cartas e a revalidação.
+    const airport = this.toAirport(plan, runways);
+    const now = this.clock.now();
+    const procedures = plan.charts.map((chart) =>
+      toProcedure(chart, archived.keys.get(chart.id) ?? null, now),
+    );
+    const { removedProcedureIds } = await this.report.time("database", this.clock, () =>
+      this.repository.syncAirport({
+        airport,
+        procedures,
+        ...(runwaysCheck === null
+          ? {}
+          : {
+              runwaysCheck: { at: runwaysCheck.at, sourceUpdatedOn: runwaysCheck.sourceUpdatedOn },
+            }),
+      }),
+    );
 
     // 3. Só depois do commit, remover os objetos das cartas que saíram de
     //    vigência. A ordem inversa deixaria o banco apontando para documento
-    //    inexistente (data-model, FR-020).
-    const documentsRemoved = await this.removeOrphanDocuments(icao, removedProcedureIds);
+    //    inexistente (data-model da 002, FR-020).
+    const documentsRemoved = await this.report.time("documents", this.clock, () =>
+      this.removeOrphanDocuments(entry.icao, removedProcedureIds),
+    );
 
     return {
-      icao,
+      icao: entry.icao,
       name: airport.name,
+      result: "written",
+      runwaysCheck,
+      runwaysReason: plan.runwaysReason,
       proceduresPersisted: procedures.length,
       documentsArchived: archived.archivedCount,
       documentsAlreadyPresent: archived.alreadyPresentCount,
@@ -70,71 +116,25 @@ export class ProcessAirport {
     };
   }
 
-  private toAirport(icao: string, details: AirportDetails): Airport {
-    // Meia coordenada é inútil: as duas são gravadas juntas ou nenhuma.
-    const hasCoordinates = details.latitude !== null && details.longitude !== null;
-    if (!hasCoordinates && (details.latitude !== null || details.longitude !== null)) {
-      this.report.recordWarning(`${icao}: coordenada incompleta na fonte, gravada como ausente`);
-    }
-
+  private toAirport(plan: AirportPlan, runways: readonly AirportRunway[]): Airport {
+    const { entry } = plan;
     const missing: string[] = [];
-    if (details.city === null) {
+    if (entry.city === null) {
       missing.push("cidade");
     }
-    if (details.state === null) {
+    if (entry.state === null) {
       missing.push("UF");
     }
-    if (!hasCoordinates) {
+    if (entry.latitude === null || entry.longitude === null) {
       missing.push("coordenadas");
     }
     if (missing.length > 0) {
-      // Campo opcional ausente é registrado sem interromper a rotina (FR-009).
-      this.report.recordWarning(`${icao}: sem ${missing.join(", ")} na fonte`);
+      // Campo opcional ausente é registrado sem interromper a rotina (FR-009 da
+      // 002). Só ao gravar: repetir o alerta para aeródromo inalterado a cada
+      // execução seria ruído.
+      this.report.recordWarning(`${entry.icao}: sem ${missing.join(", ")} na fonte`);
     }
-
-    return {
-      icao: details.icao.toUpperCase(),
-      name: details.name,
-      city: details.city,
-      state: details.state,
-      // Fora de qualquer condicional: a fonte cobre só o Brasil, então o país é
-      // conhecido mesmo quando cidade, UF e coordenadas faltam (FR-005).
-      country: BRAZIL_COUNTRY_CODE,
-      latitude: hasCoordinates ? details.latitude : null,
-      longitude: hasCoordinates ? details.longitude : null,
-      runways: details.runways.map((runway) => ({
-        ident: runway.ident,
-        lengthMeters: runway.lengthMeters,
-        widthMeters: runway.widthMeters,
-      })),
-    };
-  }
-
-  private toProcedure(chart: ChartSummary, archivedKey: string | undefined): AirportProcedure {
-    return {
-      id: chart.id,
-      airportIcao: chart.airportIcao.toUpperCase(),
-      name: chart.name,
-      type: chart.type,
-      amendment: chart.amendment,
-      sourceUrl: chart.link,
-      storageKey: archivedKey ?? null,
-      archivedAt: archivedKey === undefined ? null : new Date(),
-    };
-  }
-
-  private auditChartTypes(icao: string, charts: readonly ChartSummary[]): void {
-    for (const chart of charts) {
-      const wasUnknown = this.audit.isUnknown(chart.type);
-      this.audit.record(chart.type);
-      if (wasUnknown) {
-        // A carta é persistida normalmente: a fonte é a autoridade e descartar
-        // um tipo novo seria perda de dado por omissão (FR-012, research R2).
-        this.report.recordWarning(
-          `${icao}: tipo de carta desconhecido "${chart.type}" na espécie IFR (carta ${chart.id})`,
-        );
-      }
-    }
+    return toAirport(entry, runways);
   }
 
   private async archiveDocuments(
@@ -193,4 +193,18 @@ export class ProcessAirport {
     }
     return removed;
   }
+}
+
+function emptyOutcome(
+  icao: string,
+  name: string,
+): Omit<AirportOutcome, "result" | "runwaysCheck" | "runwaysReason"> {
+  return {
+    icao,
+    name,
+    proceduresPersisted: 0,
+    documentsArchived: 0,
+    documentsAlreadyPresent: 0,
+    documentsRemoved: 0,
+  };
 }

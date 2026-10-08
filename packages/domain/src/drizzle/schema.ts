@@ -28,6 +28,14 @@ export const airport = pgTable(
      * `Airport` nem é serializado.
      */
     searchText: text("search_text"),
+    /**
+     * Estado da rotina de coleta, não dado aeronáutico — nunca entra na entidade
+     * `Airport`. Momento da última coleta bem-sucedida do detalhamento (pistas):
+     * nulo significa que as pistas precisam ser coletadas.
+     */
+    runwaysCheckedAt: timestamp("runways_checked_at", { withTimezone: true }),
+    /** `<dt>` do registro ROTAER visto nessa coleta; mudou na fonte ⇒ revalidar. */
+    sourceUpdatedOn: text("source_updated_on"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -73,3 +81,16 @@ export const airportProcedure = pgTable(
   },
   (table) => [index("airport_procedure_icao_idx").on(table.airportIcao)],
 );
+
+/**
+ * Indicador de atualização observado em uma fonte. A AISWEB publica um só para
+ * todas as cartas IFR (`lastupdate` + `emenda`), daí uma linha por fonte.
+ */
+export const sourceSyncState = pgTable("source_sync_state", {
+  source: text("source").primaryKey(),
+  lastUpdate: text("last_update"),
+  airacCycle: text("airac_cycle"),
+  /** Quando o par atual foi visto pela primeira vez — não muda enquanto o par não mudar. */
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

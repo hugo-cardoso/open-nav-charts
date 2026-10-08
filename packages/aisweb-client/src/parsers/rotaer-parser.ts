@@ -1,13 +1,13 @@
 import { XMLParser } from "fast-xml-parser";
 import { z } from "zod";
-import type { AirportDetails, RunwayDetails } from "../aisweb-client.js";
+import type {
+  AirportCatalogEntry,
+  AirportCatalogPage,
+  AirportDetails,
+  RunwayDetails,
+} from "../aisweb-client.js";
 import { PermanentSourceError } from "../errors.js";
 import { parseSexagesimal, toArray, toNullableNumber, toNullableText } from "./xml-utils.js";
-
-export interface AirportListPage {
-  readonly total: number;
-  readonly icaos: readonly string[];
-}
 
 /**
  * O XML da fonte entra como `unknown` e só vira entidade depois de estreitado
@@ -24,7 +24,17 @@ const listSchema = z.object({
   }),
 });
 
-const itemSchema = z.object({ AeroCode: z.unknown().optional() });
+const catalogItemSchema = z.object({
+  AeroCode: z.unknown().optional(),
+  name: z.unknown().optional(),
+  city: z.unknown().optional(),
+  uf: z.unknown().optional(),
+  lat: z.unknown().optional(),
+  lng: z.unknown().optional(),
+  latRotaer: z.unknown().optional(),
+  lngRotaer: z.unknown().optional(),
+  dt: z.unknown().optional(),
+});
 
 const airportSchema = z.object({
   aisweb: z.object({
@@ -59,22 +69,48 @@ export class RotaerParser {
     cdataPropName: "__cdata",
   });
 
-  parseList(xml: string): AirportListPage {
+  /**
+   * O catálogo em lote traz nome, cidade, UF e coordenadas iguais aos do
+   * detalhamento (research R3). Um item inválido é descartado e descrito em
+   * `rejected` — derrubar o catálogo inteiro por um item pararia a coleta toda.
+   */
+  parseCatalog(xml: string): AirportCatalogPage {
     const parsed = listSchema.safeParse(this.parse(xml));
     if (!parsed.success) {
       throw new PermanentSourceError("resposta de listagem do ROTAER em formato inesperado");
     }
 
     const rotaer = parsed.data.aisweb.rotaer;
-    const icaos = toArray(rotaer?.item)
-      .map((item) => {
-        const parsedItem = itemSchema.safeParse(item);
-        return parsedItem.success ? toNullableText(parsedItem.data.AeroCode) : null;
-      })
-      .filter((icao): icao is string => icao !== null)
-      .map((icao) => icao.toUpperCase());
+    const entries: AirportCatalogEntry[] = [];
+    const rejected: string[] = [];
 
-    return { total: rotaer?.["@_total"] ?? icaos.length, icaos };
+    for (const item of toArray(rotaer?.item)) {
+      const parsedItem = catalogItemSchema.safeParse(item);
+      const data = parsedItem.success ? parsedItem.data : {};
+      const icao = toNullableText(data.AeroCode)?.toUpperCase() ?? null;
+      const name = toNullableText(data.name);
+      if (icao === null || name === null) {
+        rejected.push(
+          icao === null
+            ? `item do catálogo sem AeroCode${name === null ? "" : ` (${name})`}`
+            : `${icao}: item do catálogo sem name`,
+        );
+        continue;
+      }
+
+      const coordinates = this.readCoordinates(data);
+      entries.push({
+        icao,
+        name,
+        city: toNullableText(data.city),
+        state: toNullableText(data.uf)?.toUpperCase() ?? null,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        updatedOn: toNullableText(data.dt),
+      });
+    }
+
+    return { total: rotaer?.["@_total"] ?? entries.length, entries, rejected };
   }
 
   parseAirport(xml: string): AirportDetails {

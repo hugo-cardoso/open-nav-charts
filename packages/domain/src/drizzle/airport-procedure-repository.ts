@@ -40,7 +40,14 @@ export async function saveProceduresWith(
         // Documento já arquivado não é rebaixado a nulo por uma coleta que pulou
         // os PDFs (--skip-documents): o objeto continua no bucket e endereçado.
         storageKey: sql`coalesce(excluded.storage_key, ${airportProcedure.storageKey})`,
-        archivedAt: sql`coalesce(excluded.archived_at, ${airportProcedure.archivedAt})`,
+        // `archived_at` é quando o documento foi arquivado: muda só com a chave.
+        // Uma coleta que só reconfirma o mesmo objeto não o rejuvenesce.
+        archivedAt: sql`case
+          when excluded.storage_key is not null
+           and excluded.storage_key is distinct from ${airportProcedure.storageKey}
+          then excluded.archived_at
+          else coalesce(${airportProcedure.archivedAt}, excluded.archived_at)
+        end`,
         updatedAt: sql`now()`,
       },
     });

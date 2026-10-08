@@ -1,5 +1,10 @@
 # Contrato consumido — API AISWEB (DECEA)
 
+> **Atualizado pela feature 007** (2026-10-08): a rotina passou a usar o catálogo e as cartas IFR
+> **em lote**, e o download recorre ao host da API quando o `<link>` não responde. O que mudou está
+> no adendo [`specs/007-decea-crawler-optimization/contracts/aisweb-api.md`](../../007-decea-crawler-optimization/contracts/aisweb-api.md);
+> o restante deste documento continua valendo.
+
 **Tipo**: dependência externa. Este contrato descreve o que a rotina **espera** da fonte; não é
 implementado por nós.
 

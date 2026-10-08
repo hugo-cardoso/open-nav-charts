@@ -18,7 +18,6 @@ import { RunReport } from "./runtime/run-report.js";
 
 export interface CrawlerRunOptions extends CrawlerOptions {
   readonly maxAttempts: number;
-  readonly skipDocuments: boolean;
 }
 
 /**
@@ -34,11 +33,14 @@ export interface JobOptionsByName {
 
 /** Padrões da rotina, aplicados quando ela não é a invocada nesta execução. */
 const DEFAULT_CRAWLER_OPTIONS: CrawlerRunOptions = {
-  pageSize: 100,
+  pageSize: 5000,
   concurrency: 4,
   maxAttempts: 3,
   skipDocuments: false,
   only: [],
+  force: false,
+  revalidationDays: 7,
+  revalidationBudget: 1000,
 };
 
 export interface CompositionRootOptions {
@@ -105,17 +107,23 @@ export class CompositionRoot {
     const storage = this.chartStorage();
     const audit = new ChartTypeAudit();
     const report = new RunReport(this.clock.now());
+    const archiver = new ChartArchiver({ client, storage });
+    const database = this.db();
 
     return new DeceaCrawlerJob({
       client,
       processAirport: new ProcessAirport({
         client,
-        repository: this.db().sync,
-        archiver: new ChartArchiver({ client, storage }),
-        audit,
+        repository: database.sync,
+        archiver,
         report,
+        clock: this.clock,
         skipDocuments: options.skipDocuments,
       }),
+      archiver,
+      snapshots: database.snapshots,
+      syncState: database.syncState,
+      sync: database.sync,
       retry: new RetryPolicy({
         clock: this.clock,
         random: this.random,
@@ -130,6 +138,10 @@ export class CompositionRoot {
         pageSize: options.pageSize,
         concurrency: options.concurrency,
         only: options.only,
+        force: options.force,
+        revalidationDays: options.revalidationDays,
+        revalidationBudget: options.revalidationBudget,
+        skipDocuments: options.skipDocuments,
       },
     });
   }

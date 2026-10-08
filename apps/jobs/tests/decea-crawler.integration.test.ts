@@ -19,34 +19,42 @@ import { RunReport } from "../src/runtime/run-report.js";
 const BUCKET = "onc-charts";
 const CREDENTIALS = { accessKeyId: "minioadmin", secretAccessKey: "minioadmin" } as const;
 
+interface SourceRequests {
+  catalog: number;
+  charts: number;
+  details: number;
+  downloads: number;
+}
+
 /**
  * Fonte AISWEB simulada por um servidor HTTP local: o banco e o bucket são
  * reais, só as credenciais do DECEA (que não podem ser versionadas) saem do
- * caminho. É o que permite validar o pipeline completo sem rede externa.
+ * caminho. Serve o catálogo e as cartas em lote, como a fonte real (research
+ * R2, R3), e conta as requisições para provar o que o atalho economiza.
  */
 function startFakeSource(options: {
   chartsByIcao: Readonly<Record<string, readonly string[]>>;
-  /** Nº de respostas 503 antes de a fonte voltar — simula rede instável. */
+  /** Cartas publicadas para aeródromos que não constam do catálogo `AD`. */
+  outsideCatalog?: Readonly<Record<string, readonly string[]>>;
+  /** Aeródromos do catálogo cujo detalhamento vem vazio (`SI5J`, `SJZ1`). */
+  withoutDetails?: readonly string[];
+  /** Nº de respostas 503 no detalhamento antes de a fonte voltar — rede instável. */
   failFirstRequests?: number;
 }): {
   server: Server;
   baseUrl: string;
+  requests: SourceRequests;
 } {
   const icaos = Object.keys(options.chartsByIcao);
+  const requests: SourceRequests = { catalog: 0, charts: 0, details: 0, downloads: 0 };
   let remainingFailures = options.failFirstRequests ?? 0;
 
   const server = createServer((request, response) => {
     const host = request.headers.host ?? "localhost";
     const url = new URL(request.url ?? "/", `http://${host}`);
 
-    if (remainingFailures > 0 && url.searchParams.get("icaoCode") !== null) {
-      remainingFailures -= 1;
-      response.writeHead(503, { "content-type": "text/plain" });
-      response.end("fonte temporariamente indisponível");
-      return;
-    }
-
     if (url.pathname.startsWith("/download")) {
+      requests.downloads += 1;
       response.writeHead(200, { "content-type": "application/pdf" });
       response.end(Buffer.from("%PDF-1.7\ndocumento de teste\n%%EOF"));
       return;
@@ -54,25 +62,20 @@ function startFakeSource(options: {
 
     const area = url.searchParams.get("area");
     const icao = url.searchParams.get("icaoCode");
-    response.writeHead(200, { "content-type": "text/xml; charset=utf-8" });
 
-    if (area === "cartas" && icao !== null) {
-      const ids = options.chartsByIcao[icao] ?? [];
-      response.end(
-        `<aisweb><cartas emenda="2026-08-06" total="${ids.length}">${ids
-          .map(
-            (id) =>
-              `<item id="${id}"><id>${id}</id><tipo>IAC</tipo><nome><![CDATA[RNP Y RWY 28]]></nome>` +
-              `<IcaoCode>${icao}</IcaoCode>` +
-              `<link><![CDATA[http://${host}/download/?arquivo=${id}&amp;apikey=k]]></link>` +
-              `<amdt>2601A1</amdt></item>`,
-          )
-          .join("")}</cartas></aisweb>`,
-      );
-      return;
-    }
-
-    if (icao !== null) {
+    if (area === "rotaer" && icao !== null) {
+      requests.details += 1;
+      if (remainingFailures > 0) {
+        remainingFailures -= 1;
+        response.writeHead(503, { "content-type": "text/plain" });
+        response.end("fonte temporariamente indisponível");
+        return;
+      }
+      response.writeHead(200, { "content-type": "text/xml; charset=utf-8" });
+      if (options.withoutDetails?.includes(icao) === true) {
+        response.end("<aisweb></aisweb>");
+        return;
+      }
       response.end(
         `<aisweb><AeroCode>${icao}</AeroCode><name><![CDATA[Aeródromo ${icao} — Ação]]></name>` +
           `<city><![CDATA[São Paulo]]></city><uf>SP</uf><lat>-22.81</lat><lng>-43.250555555556</lng>` +
@@ -82,19 +85,46 @@ function startFakeSource(options: {
       return;
     }
 
+    response.writeHead(200, { "content-type": "text/xml; charset=utf-8" });
+
+    if (area === "cartas") {
+      requests.charts += 1;
+      const published = { ...options.chartsByIcao, ...options.outsideCatalog };
+      const items = Object.entries(published).flatMap(([code, ids]) =>
+        ids.map(
+          (id) =>
+            `<item id="${id}"><id>${id}</id><tipo>IAC</tipo><nome><![CDATA[RNP Y RWY 28]]></nome>` +
+            // Sem <link>: o cliente recorre à URL derivada do id. Com o link, a
+            // porta efêmera desta fonte mudaria entre execuções e a carta
+            // pareceria alterada — coisa que a fonte real não faz.
+            `<IcaoCode>${code}</IcaoCode><amdt>2601A1</amdt></item>`,
+        ),
+      );
+      response.end(
+        `<aisweb><cartas emenda="  2026-10-01  " lastupdate="  {ts '2026-09-30 17:35:34'}  " total="${items.length}">${items.join("")}</cartas></aisweb>`,
+      );
+      return;
+    }
+
+    requests.catalog += 1;
     const offset = Number(url.searchParams.get("rowstart") ?? "0");
     const limit = Number(url.searchParams.get("rowend") ?? "100");
     const page = icaos.slice(offset, offset + limit);
     response.end(
       `<aisweb><rotaer total="${icaos.length}">${page
-        .map((code) => `<item><AeroCode>${code}</AeroCode></item>`)
+        .map(
+          (code) =>
+            `<item><AeroCode>${code}</AeroCode><name><![CDATA[Aeródromo ${code} — Ação]]></name>` +
+            `<city><![CDATA[São Paulo]]></city><uf>SP</uf><lng>-43.250555555556</lng><lat>-22.81</lat>` +
+            `<dt>2026-09-10</dt></item>`,
+        )
         .join("")}</rotaer></aisweb>`,
     );
   });
 
   server.listen(0);
   const port = (server.address() as AddressInfo).port;
-  return { server, baseUrl: `http://127.0.0.1:${port}` };
+  return { server, baseUrl: `http://127.0.0.1:${port}`, requests };
 }
 
 class SilentWriter implements OutputWriter {
@@ -110,7 +140,7 @@ describe("decea-crawler (integração ponta a ponta)", () => {
   let minio: StartedTestContainer;
   let database: Database;
   let storage: ManagedChartStorage;
-  let source: { server: Server; baseUrl: string };
+  let source: { server: Server; baseUrl: string; requests: SourceRequests };
 
   beforeAll(async () => {
     postgres = await new PostgreSqlContainer("postgres:17-alpine").start();
@@ -166,13 +196,17 @@ describe("decea-crawler (integração ponta a ponta)", () => {
       pageSize?: number;
       only?: readonly string[];
       failFirstRequests?: number;
+      outsideCatalog?: Readonly<Record<string, readonly string[]>>;
+      withoutDetails?: readonly string[];
     } = {},
-  ): { job: DeceaCrawlerJob; report: RunReport; writer: SilentWriter } {
+  ): { job: DeceaCrawlerJob; report: RunReport; writer: SilentWriter; requests: SourceRequests } {
     source = startFakeSource({
       chartsByIcao,
       ...(options.failFirstRequests === undefined
         ? {}
         : { failFirstRequests: options.failFirstRequests }),
+      ...(options.outsideCatalog === undefined ? {} : { outsideCatalog: options.outsideCatalog }),
+      ...(options.withoutDetails === undefined ? {} : { withoutDetails: options.withoutDetails }),
     });
 
     const client = new HttpAisWebClient({
@@ -186,30 +220,40 @@ describe("decea-crawler (integração ponta a ponta)", () => {
     const report = new RunReport(clock.now());
     const writer = new SilentWriter();
     const audit = new ChartTypeAudit();
+    const archiver = new ChartArchiver({ client, storage });
+    const skipDocuments = options.skipDocuments ?? false;
 
     const job = new DeceaCrawlerJob({
       client,
       processAirport: new ProcessAirport({
         client,
         repository: database.sync,
-        archiver: new ChartArchiver({ client, storage }),
-        audit,
+        archiver,
         report,
-        skipDocuments: options.skipDocuments ?? false,
+        clock,
+        skipDocuments,
       }),
+      archiver,
+      snapshots: database.snapshots,
+      syncState: database.syncState,
+      sync: database.sync,
       retry: new RetryPolicy({ clock, random: Math.random, maxAttempts: 3, baseDelayMs: 10 }),
       progress: new ConsoleProgressReporter(writer),
       report,
       audit,
       clock,
       options: {
-        pageSize: options.pageSize ?? 100,
+        pageSize: options.pageSize ?? 5000,
         concurrency: 4,
         only: options.only ?? [],
+        force: false,
+        revalidationDays: 7,
+        revalidationBudget: 1000,
+        skipDocuments,
       },
     });
 
-    return { job, report, writer };
+    return { job, report, writer, requests: source.requests };
   }
 
   it("coleta aeródromo, cartas e documentos ponta a ponta", async () => {
@@ -236,15 +280,17 @@ describe("decea-crawler (integração ponta a ponta)", () => {
     expect(await storage.exists("SBGL/sbgl-c1.pdf")).toBe(true);
   });
 
-  it("é idempotente: reexecutar não duplica e reaproveita o documento arquivado", async () => {
+  it("na segunda execução sem mudança não grava nem consulta o detalhamento", async () => {
     await buildJob({ SBGR: ["sbgr-c1"] }).job.run(new AbortController().signal);
+    const before = await database.procedures.listByAirport("SBGR");
 
-    const { job, report } = buildJob({ SBGR: ["sbgr-c1"] });
+    const { job, report, requests } = buildJob({ SBGR: ["sbgr-c1"] });
     await job.run(new AbortController().signal);
 
+    expect(requests).toEqual({ catalog: 1, charts: 1, details: 0, downloads: 0 });
+    expect(report.totals.airportsUnchanged).toBe(1);
     expect(report.totals.documentsArchived).toBe(0);
-    expect(report.totals.documentsAlreadyPresent).toBe(1);
-    expect(await database.procedures.listByAirport("SBGR")).toHaveLength(1);
+    expect(await database.procedures.listByAirport("SBGR")).toEqual(before);
     // Reprocessar reescreve o mesmo país, sem duplicar o registro (FR-004). O
     // ICAO é a chave primária, então uma única linha por aeródromo é o próprio
     // enunciado da idempotência.
@@ -280,7 +326,7 @@ describe("decea-crawler (integração ponta a ponta)", () => {
   });
 
   it("percorre todas as páginas, incluindo a última parcial", async () => {
-    const { job, report, writer } = buildJob(
+    const { job, report, writer, requests } = buildJob(
       { SBCF: ["a"], SBPA: ["b"], SBCT: ["c"] },
       { pageSize: 2 },
     );
@@ -288,7 +334,8 @@ describe("decea-crawler (integração ponta a ponta)", () => {
     await job.run(new AbortController().signal);
 
     // 3 aeródromos em páginas de 2 → 2 páginas, a última com um só.
-    expect(writer.lines[0]).toContain("3 aeródromos em 2 páginas");
+    expect(requests.catalog).toBe(2);
+    expect(writer.lines.some((line) => line.includes("Fonte lida: 3 aeródromos"))).toBe(true);
     expect(report.totals.airportsSucceeded).toBe(3);
     expect(await database.airports.findByIcao("SBCT")).not.toBeNull();
   });
@@ -318,14 +365,41 @@ describe("decea-crawler (integração ponta a ponta)", () => {
     expect(await database.airports.findByIcao("SBBE")).toBeNull();
   });
 
+  it("não grava as cartas de aeródromos fora do catálogo", async () => {
+    const { job, report } = buildJob(
+      { SBRF: ["sbrf-c1"] },
+      { outsideCatalog: { SBEN: ["sben-c1"] } },
+    );
+
+    await job.run(new AbortController().signal);
+
+    expect(report.totals.chartsOutsideCatalog).toBe(1);
+    expect(await database.procedures.findById("sben-c1")).toBeNull();
+    expect(await database.procedures.findById("sbrf-c1")).not.toBeNull();
+  });
+
+  it("deixa fora da base o aeródromo sem detalhamento publicado", async () => {
+    const { job, report } = buildJob({ SBMO: [], SI5J: [] }, { withoutDetails: ["SI5J"] });
+
+    await job.run(new AbortController().signal);
+
+    expect(report.failures.map((failure) => failure.icao)).toEqual(["SI5J"]);
+    expect(await database.airports.findByIcao("SI5J")).toBeNull();
+    expect(await database.airports.findByIcao("SBMO")).not.toBeNull();
+  });
+
   it("emite o resumo final com os totais e a duração", async () => {
     const { job, report } = buildJob({ SBFL: ["sbfl-c1"] });
 
     await job.run(new AbortController().signal);
     const summary = report.format(new Date(report.startedAt.getTime() + 61_000));
 
-    expect(summary).toContain("Aeródromos processados : 1");
-    expect(summary).toContain("Cartas persistidas     : 1");
-    expect(summary).toContain("Duração                : 1m1s");
+    expect(summary).toContain("Duração total            : 1m1s");
+    expect(summary).toContain(
+      "Fonte                    : lastupdate 2026-09-30 17:35:34 · AIRAC 2026-10-01",
+    );
+    expect(summary).toContain("  gravados               : 1");
+    expect(summary).toContain("Cartas persistidas       : 1");
+    expect(summary).toContain("Tempo por etapa (soma das linhas de trabalho):");
   });
 });

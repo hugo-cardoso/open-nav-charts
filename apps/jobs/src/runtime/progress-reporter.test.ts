@@ -15,30 +15,30 @@ function reporter(): { reporter: ConsoleProgressReporter; writer: CapturingWrite
 }
 
 describe("ConsoleProgressReporter", () => {
-  it("anuncia o início com total, páginas e concorrência", () => {
+  it("anuncia o início com a concorrência", () => {
     const { reporter: subject, writer } = reporter();
 
-    subject.jobStarted(4550, 46, 4);
+    subject.jobStarted(4);
 
     expect(writer.lines[0]).toBe(
-      "[decea-crawler] Iniciando. 4550 aeródromos em 46 páginas, 4 simultâneos.",
+      "[decea-crawler] Iniciando, 4 simultâneos. Lendo catálogo, cartas, base e bucket.",
     );
   });
 
-  it("anuncia início de página no formato n/N", () => {
+  it("anuncia o tamanho do catálogo e do lote de cartas", () => {
     const { reporter: subject, writer } = reporter();
 
-    subject.pageStarted(1, 46);
+    subject.sourceLoaded(4491, 1807);
 
-    expect(writer.lines[0]).toBe("[decea-crawler] Página 1/46 iniciada.");
+    expect(writer.lines[0]).toBe("[decea-crawler] Fonte lida: 4491 aeródromos, 1807 cartas IFR.");
   });
 
-  it("anuncia fim de página com a duração em segundos", () => {
+  it("anuncia o plano: a processar e inalterados", () => {
     const { reporter: subject, writer } = reporter();
 
-    subject.pageFinished(1, 46, 34_000);
+    subject.planned(12, 4479);
 
-    expect(writer.lines[0]).toBe("[decea-crawler] Página 1/46 concluída em 34s.");
+    expect(writer.lines[0]).toBe("[decea-crawler] 12 aeródromos a processar, 4479 inalterados.");
   });
 
   it("emite uma linha por aeródromo com ICAO, nome e contagem de cartas", () => {

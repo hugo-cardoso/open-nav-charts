@@ -140,6 +140,10 @@ export class FakeChartStorage implements ChartStorage {
     this.objects.delete(key);
   }
 
+  async listKeys(): Promise<ReadonlySet<string>> {
+    return new Set(this.objects.keys());
+  }
+
   async presignGetUrl(key: string, expiresInSeconds: number): Promise<string> {
     if (this.presignFailure !== null) {
       throw this.presignFailure;
