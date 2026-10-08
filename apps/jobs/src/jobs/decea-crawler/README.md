@@ -268,4 +268,11 @@ A linha de base anterior (feature 002, uma consulta de cartas e uma de detalhame
 era de ~7m30s em produção. O pior caso agora é o da primeira execução — limitada pelo download dos
 PDFs, que em produção já estão no bucket — e a virada de AIRAC fica em menos de 2 min.
 
+### Produção (Railway)
+
+| Execução | Duração | Observação |
+| -------- | ------- | ---------- |
+| Primeira após o deploy da 0.7.0 | 2m1s | Todas as pistas pendentes (coluna nova vazia); PDFs já no bucket |
+| Seguinte, em regime estável | 13s | Só os aeródromos alterados na fonte geram trabalho |
+
 A única falha recorrente é `SI5J`, que a fonte lista sem detalhamento publicado.

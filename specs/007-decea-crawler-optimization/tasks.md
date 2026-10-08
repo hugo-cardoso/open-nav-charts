@@ -169,7 +169,7 @@ aeródromos no catálogo` e que todas as linhas de contracts/jobs-cli.md aparece
 - [X] T048 [P] Atualizar `specs/002-decea-crawler-job/contracts/aisweb-api.md` com um aviso no topo apontando para o adendo `specs/007-decea-crawler-optimization/contracts/aisweb-api.md`
 - [X] T049 Rodar os portões de qualidade da raiz — `pnpm check` e `pnpm test:integration` — e corrigir o que falhar
 - [X] T050 Executar contra a AISWEB real o roteiro de `specs/007-decea-crawler-optimization/quickstart.md` §2–§7 e anotar os resultados (duração, % inalterados, contagens) na seção "Desempenho observado" de `apps/jobs/src/jobs/decea-crawler/README.md`
-- [ ] T051 Após o deploy, registrar em `apps/jobs/src/jobs/decea-crawler/README.md` as durações da primeira execução em produção (todas as pistas pendentes) e da seguinte (regime estável), confirmando SC-001 e SC-002 (quickstart §8)
+- [X] T051 Após o deploy, registrar em `apps/jobs/src/jobs/decea-crawler/README.md` as durações da primeira execução em produção (todas as pistas pendentes) e da seguinte (regime estável), confirmando SC-001 e SC-002 (quickstart §8)
 
 ---
 
