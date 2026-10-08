@@ -10,32 +10,6 @@ function fixture(name: string): string {
 }
 
 describe("RotaerParser", () => {
-  describe("parseList", () => {
-    it("lê o total global e os códigos ICAO da página", () => {
-      const parser = new RotaerParser();
-
-      const page = parser.parseList(fixture("rotaer-list.xml"));
-
-      expect(page.total).toBe(4550);
-      expect(page.icaos).toEqual(["SBGR", "SBSP", "SBGL"]);
-    });
-
-    it("aceita página vazia preservando o total anunciado", () => {
-      const parser = new RotaerParser();
-
-      const page = parser.parseList(fixture("rotaer-list-vazia.xml"));
-
-      expect(page.total).toBe(4550);
-      expect(page.icaos).toEqual([]);
-    });
-
-    it("rejeita XML malformado como erro definitivo", () => {
-      const parser = new RotaerParser();
-
-      expect(() => parser.parseList("<aisweb><rotaer")).toThrow(PermanentSourceError);
-    });
-  });
-
   describe("parseAirport", () => {
     it("extrai nome acentuado de CDATA, coordenadas decimais e pistas", () => {
       const parser = new RotaerParser();
@@ -135,11 +109,11 @@ describe("RotaerParser", () => {
   });
 });
 
-describe("ChartsParser", () => {
+describe("ChartsParser — regras por carta", () => {
   it("lê id, nome, tipo, amdt por carta e desescapa o link", () => {
     const parser = new ChartsParser();
 
-    const charts = parser.parse(fixture("cartas-sbgl.xml"), "SBGL");
+    const charts = parser.parseCatalog(fixture("cartas-sbgl.xml")).charts;
 
     expect(charts).toHaveLength(7);
     const [first] = charts;
@@ -156,7 +130,7 @@ describe("ChartsParser", () => {
   it("usa o <amdt> de cada carta, não o atributo emenda do envelope", () => {
     const parser = new ChartsParser();
 
-    const charts = parser.parse(fixture("cartas-sbgl.xml"), "SBGL");
+    const charts = parser.parseCatalog(fixture("cartas-sbgl.xml")).charts;
 
     const amendments = charts.map((chart) => chart.amendment);
     expect(amendments).toContain("2601A1");
@@ -168,7 +142,7 @@ describe("ChartsParser", () => {
   it("aceita carta sem emenda com amendment nulo", () => {
     const parser = new ChartsParser();
 
-    const charts = parser.parse(fixture("cartas-sbgl.xml"), "SBGL");
+    const charts = parser.parseCatalog(fixture("cartas-sbgl.xml")).charts;
 
     const withoutAmendment = charts.find((chart) => chart.type === "AOC");
     expect(withoutAmendment?.amendment).toBeNull();
@@ -177,13 +151,13 @@ describe("ChartsParser", () => {
   it("aceita aeródromo sem cartas", () => {
     const parser = new ChartsParser();
 
-    expect(parser.parse(fixture("cartas-vazio.xml"), "SBGL")).toEqual([]);
+    expect(parser.parseCatalog(fixture("cartas-vazio.xml")).charts).toEqual([]);
   });
 
   it("trata total divergente da contagem de itens como falha retentável", () => {
     const parser = new ChartsParser();
 
-    expect(() => parser.parse(fixture("cartas-truncado.xml"), "SBGL")).toThrow(
+    expect(() => parser.parseCatalog(fixture("cartas-truncado.xml")).charts).toThrow(
       RetryableSourceError,
     );
   });
@@ -192,12 +166,158 @@ describe("ChartsParser", () => {
     const parser = new ChartsParser();
     const xml = `<aisweb><cartas total="1"><item><id>abc</id><nome><![CDATA[X]]></nome></item></cartas></aisweb>`;
 
-    expect(() => parser.parse(xml, "SBGL")).toThrow(PermanentSourceError);
+    expect(() => parser.parseCatalog(xml)).toThrow(PermanentSourceError);
   });
 
   it("rejeita XML malformado como erro definitivo", () => {
     const parser = new ChartsParser();
 
-    expect(() => parser.parse("<aisweb><cartas", "SBGL")).toThrow(PermanentSourceError);
+    expect(() => parser.parseCatalog("<aisweb><cartas")).toThrow(PermanentSourceError);
+  });
+});
+
+describe("RotaerParser.parseCatalog", () => {
+  it("lê o total e os dados cadastrais de cada aeródromo do catálogo em lote", () => {
+    const parser = new RotaerParser();
+
+    const page = parser.parseCatalog(fixture("rotaer-catalogo.xml"));
+
+    expect(page.total).toBe(4);
+    expect(page.entries.map((entry) => entry.icao)).toEqual(["SBGL", "SBCB", "SNAO", "SI5J"]);
+    const [sbgl] = page.entries;
+    expect(sbgl).toEqual({
+      icao: "SBGL",
+      name: "Galeão - Antônio Carlos Jobim",
+      city: "Rio de Janeiro",
+      state: "RJ",
+      latitude: -22.81,
+      longitude: -43.250555555556,
+      updatedOn: "2026-10-08",
+    });
+    expect(page.rejected).toEqual([]);
+  });
+
+  it("lê o <dt> de cada aeródromo como data da última alteração do registro", () => {
+    const parser = new RotaerParser();
+
+    const page = parser.parseCatalog(fixture("rotaer-catalogo.xml"));
+
+    const snao = page.entries.find((entry) => entry.icao === "SNAO");
+    expect(snao?.updatedOn).toBe("2023-09-14");
+  });
+
+  it("grava meia coordenada como nenhuma", () => {
+    const parser = new RotaerParser();
+    const xml = `<aisweb><rotaer total="1"><item><AeroCode>SBXX</AeroCode><name>X</name><lat>-10.5</lat></item></rotaer></aisweb>`;
+
+    const [entry] = parser.parseCatalog(xml).entries;
+
+    expect(entry?.latitude).toBeNull();
+    expect(entry?.longitude).toBeNull();
+    expect(entry?.updatedOn).toBeNull();
+  });
+
+  it("descarta item sem AeroCode ou name sem derrubar o catálogo", () => {
+    const parser = new RotaerParser();
+    const xml = `<aisweb><rotaer total="3">
+      <item><AeroCode>SBAA</AeroCode><name>Válido</name></item>
+      <item><name>Sem código</name></item>
+      <item><AeroCode>SBBB</AeroCode></item>
+    </rotaer></aisweb>`;
+
+    const page = parser.parseCatalog(xml);
+
+    expect(page.entries.map((entry) => entry.icao)).toEqual(["SBAA"]);
+    expect(page.rejected).toHaveLength(2);
+    expect(page.rejected.join(" ")).toContain("SBBB");
+  });
+
+  it("aceita página vazia preservando o total anunciado", () => {
+    const parser = new RotaerParser();
+
+    const page = parser.parseCatalog(fixture("rotaer-list-vazia.xml"));
+
+    expect(page.total).toBe(4550);
+    expect(page.entries).toEqual([]);
+  });
+
+  it("rejeita XML malformado como erro definitivo", () => {
+    const parser = new RotaerParser();
+
+    expect(() => parser.parseCatalog("<aisweb><rotaer")).toThrow(PermanentSourceError);
+  });
+});
+
+describe("ChartsParser.parseCatalog", () => {
+  it("lê o indicador global de atualização e o ciclo AIRAC sem os espaços nem o {ts}", () => {
+    const parser = new ChartsParser();
+
+    const catalog = parser.parseCatalog(fixture("cartas-lote.xml"));
+
+    expect(catalog.lastUpdate).toBe("2026-09-30 17:35:34");
+    expect(catalog.airacCycle).toBe("2026-10-01");
+  });
+
+  it("atribui cada carta ao aeródromo do próprio <IcaoCode>", () => {
+    const parser = new ChartsParser();
+
+    const catalog = parser.parseCatalog(fixture("cartas-lote.xml"));
+
+    expect(catalog.charts).toHaveLength(6);
+    const byIcao = new Map<string, number>();
+    for (const chart of catalog.charts) {
+      byIcao.set(chart.airportIcao, (byIcao.get(chart.airportIcao) ?? 0) + 1);
+    }
+    expect(Object.fromEntries(byIcao)).toEqual({ SBGL: 3, SBSP: 2, SBEN: 1 });
+  });
+
+  it("usa o <amdt> da carta e desescapa o link", () => {
+    const parser = new ChartsParser();
+
+    const catalog = parser.parseCatalog(fixture("cartas-lote.xml"));
+
+    const chart = catalog.charts.find((item) => item.id === "e0d1c9f2-6564-4465-8f57eb1708fa53f1");
+    expect(chart).toEqual({
+      id: "e0d1c9f2-6564-4465-8f57eb1708fa53f1",
+      airportIcao: "SBGL",
+      name: "RNP Y RWY 28",
+      type: "IAC",
+      amendment: "2601A1",
+      link: "https://aisweb.decea.gov.br/download/?arquivo=e0d1c9f2-6564-4465-8f57eb1708fa53f1&apikey=1234567890",
+    });
+    expect(catalog.charts.map((item) => item.amendment)).not.toContain("2026-10-01");
+  });
+
+  it("devolve indicador nulo quando lastupdate não segue o formato {ts '…'}", () => {
+    const parser = new ChartsParser();
+    const xml = `<aisweb><cartas emenda="" lastupdate="ontem" total="0"></cartas></aisweb>`;
+
+    const catalog = parser.parseCatalog(xml);
+
+    expect(catalog.lastUpdate).toBeNull();
+    expect(catalog.airacCycle).toBeNull();
+    expect(catalog.charts).toEqual([]);
+  });
+
+  it("trata lote truncado como falha retentável", () => {
+    const parser = new ChartsParser();
+
+    expect(() => parser.parseCatalog(fixture("cartas-lote-truncado.xml"))).toThrow(
+      RetryableSourceError,
+    );
+  });
+
+  it("trata carta sem <IcaoCode> como erro definitivo", () => {
+    const parser = new ChartsParser();
+
+    expect(() => parser.parseCatalog(fixture("cartas-lote-sem-icao.xml"))).toThrow(
+      PermanentSourceError,
+    );
+  });
+
+  it("rejeita XML malformado como erro definitivo", () => {
+    const parser = new ChartsParser();
+
+    expect(() => parser.parseCatalog("<aisweb><cartas")).toThrow(PermanentSourceError);
   });
 });

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><aisweb>
+  <rotaer pagesize="5000" total="4">
+    <item ciad_id="8829">
+            <id>14fbaf19-b0a1-408d-b432-a75e2fa31b7f</id>
+            <type>AD</type>
+            <AeroCode>SBGL</AeroCode>
+            <ciad>RJ0001</ciad>
+            <name><![CDATA[Galeão - Antônio Carlos Jobim]]></name>
+            <city><![CDATA[Rio de Janeiro]]></city>
+            <uf>RJ</uf>
+            <lng>-43.250555555556</lng>
+            <lat>-22.81</lat>
+            <dt>2026-10-08</dt>
+          </item>
+    <item ciad_id="7160">
+            <id>4921c5c7-5b01-4c65-a222-1c640dbb0337</id>
+            <type>AD</type>
+            <AeroCode>SBCB</AeroCode>
+            <ciad>RJ0003</ciad>
+            <name><![CDATA[Cabo Frio]]></name>
+            <city><![CDATA[Cabo Frio]]></city>
+            <uf>RJ</uf>
+            <lng>-42.071388888889</lng>
+            <lat>-22.920833333333</lat>
+            <dt>2026-10-08</dt>
+          </item>
+    <item ciad_id="8591">
+            <id>80c4173c-0afb-44c9-ac15-2b7f07e129e0</id>
+            <type>AD</type>
+            <AeroCode>SNAO</AeroCode>
+            <ciad>RJ0025</ciad>
+            <name><![CDATA[Trimonte]]></name>
+            <city><![CDATA[Casimiro de Abreu]]></city>
+            <uf>RJ</uf>
+            <lng>-42.051111111111</lng>
+            <lat>-22.5125</lat>
+            <dt>2023-09-14</dt>
+          </item>
+    <item ciad_id="15130">
+            <id>3051277a-2750-4f5c-945c-79d5759c402e</id>
+            <type>AD</type>
+            <AeroCode>SI5J</AeroCode>
+            <ciad>GO0442</ciad>
+            <name><![CDATA[Fazenda Canadá]]></name>
+            <city><![CDATA[Edéia]]></city>
+            <uf>GO</uf>
+            <lng>-50.084722222222</lng>
+            <lat>-17.680833333333</lat>
+            <dt>2026-07-30</dt>
+          </item>
+  </rotaer>
+</aisweb>

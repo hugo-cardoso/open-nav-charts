@@ -1,4 +1,10 @@
-import type { AirportDetails, AisWebClient, ChartSummary } from "./aisweb-client.js";
+import type {
+  AirportCatalogPage,
+  AirportDetails,
+  AisWebClient,
+  ChartSummary,
+  IfrChartCatalog,
+} from "./aisweb-client.js";
 import { AuthenticationSourceError, PermanentSourceError, RetryableSourceError } from "./errors.js";
 import { ChartsParser } from "./parsers/charts-parser.js";
 import { RotaerParser } from "./parsers/rotaer-parser.js";
@@ -40,14 +46,7 @@ export class HttpAisWebClient implements AisWebClient {
     this.timeoutMs = options.timeoutMs ?? 30_000;
   }
 
-  async countAirports(): Promise<number> {
-    const xml = await this.getText(
-      this.apiUrl({ area: "rotaer", type: "AD", rowstart: "0", rowend: "1" }),
-    );
-    return this.rotaerParser.parseList(xml).total;
-  }
-
-  async listAirportIcaos(offset: number, limit: number): Promise<readonly string[]> {
+  async listAirports(offset: number, limit: number): Promise<AirportCatalogPage> {
     const xml = await this.getText(
       this.apiUrl({
         area: "rotaer",
@@ -56,7 +55,14 @@ export class HttpAisWebClient implements AisWebClient {
         rowend: String(limit),
       }),
     );
-    return this.rotaerParser.parseList(xml).icaos;
+    return this.rotaerParser.parseCatalog(xml);
+  }
+
+  async fetchIfrChartCatalog(): Promise<IfrChartCatalog> {
+    // Sem `icaoCode` a fonte devolve todas as cartas da espécie de uma vez, e
+    // ignora `rowstart`/`rowend` — por isso nem são enviados (research R2).
+    const xml = await this.getText(this.apiUrl({ area: "cartas", especie: "IFR" }));
+    return this.chartsParser.parseCatalog(xml);
   }
 
   async fetchAirport(icao: string): Promise<AirportDetails> {
@@ -64,20 +70,33 @@ export class HttpAisWebClient implements AisWebClient {
     return this.rotaerParser.parseAirport(xml);
   }
 
-  async fetchIfrCharts(icao: string): Promise<readonly ChartSummary[]> {
-    // `especie` é a única fonte da distinção IFR/VFR — `tipo` seleciona a sigla
-    // da carta, que é outra dimensão (research R2).
-    const xml = await this.getText(this.apiUrl({ area: "cartas", icaoCode: icao, especie: "IFR" }));
-    return this.chartsParser.parse(xml, icao);
-  }
-
   async downloadChart(chart: ChartSummary): Promise<Uint8Array> {
-    const url = chart.link ?? this.derivedDownloadUrl(chart.id);
-    const response = await this.get(url);
+    const response = await this.getDocument(chart);
     const buffer = await response.arrayBuffer().catch((cause: unknown) => {
       throw new RetryableSourceError(`falha ao ler o documento da carta ${chart.id}`, { cause });
     });
     return new Uint8Array(buffer);
+  }
+
+  /**
+   * O `<link>` publicado aponta para `aisweb.decea.gov.br`, que em 2026-10-08
+   * deixou de resolver em parte dos DNS públicos. Falha de rede nele recorre à
+   * URL derivada do id no host da API; erro HTTP não — o host respondeu, e a
+   * resposta vale.
+   */
+  private async getDocument(chart: ChartSummary): Promise<Response> {
+    const derived = this.derivedDownloadUrl(chart.id);
+    if (chart.link === null || chart.link === derived) {
+      return this.get(derived);
+    }
+    try {
+      return await this.get(chart.link);
+    } catch (error) {
+      if (!(error instanceof SourceNetworkError)) {
+        throw error;
+      }
+      return this.get(derived);
+    }
   }
 
   private apiUrl(params: Record<string, string>): string {
@@ -113,7 +132,7 @@ export class HttpAisWebClient implements AisWebClient {
       });
     } catch (cause) {
       // Timeout, DNS e conexão recusada chegam aqui e são todos retentáveis.
-      throw new RetryableSourceError(`falha de rede ao acessar a fonte: ${describe(cause)}`, {
+      throw new SourceNetworkError(`falha de rede ao acessar a fonte: ${describe(cause)}`, {
         cause,
       });
     }
@@ -137,6 +156,9 @@ export class HttpAisWebClient implements AisWebClient {
     return new PermanentSourceError(`requisição rejeitada pela fonte (HTTP ${status}) em ${where}`);
   }
 }
+
+/** A requisição nem chegou a ter resposta. Retentável como as demais, mas distinguível. */
+class SourceNetworkError extends RetryableSourceError {}
 
 function describe(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);

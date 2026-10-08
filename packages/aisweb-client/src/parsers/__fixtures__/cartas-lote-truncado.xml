@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><aisweb>
+    <cartas emenda="     2026-10-01     " lastupdate="     {ts '2026-09-30 17:35:34'}     " total="     9     ">
+			<item id="39452811-1057-4111-bb61f8413c35bdc8">
+				<id>39452811-1057-4111-bb61f8413c35bdc8</id>
+				<especie>Convencionais</especie>
+				<tipo>IAC</tipo>
+				<tipo_descr>Carta de aproximação por instrumentos</tipo_descr>
+				<nome><![CDATA[ILS U CAT II RWY 10]]></nome>
+				<IcaoCode>SBGL</IcaoCode>
+				<dt>2026-01-22</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=39452811-1057-4111-bb61f8413c35bdc8&amp;apikey=1234567890]]></link>
+				<arquivo>sbgl_ils-u-cat-ii-rwy-10_iac_20260122</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>GL01H</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=02465224-a9b9-445b-be05d77099e35726&t=GL01H]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2025-12-15</dtPublic>
+				<amdt>2601A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>02465224-a9b9-445b-be05d77099e35726</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+			<item id="35777e12-dc4a-43ee-b1f18ce4588848b7">
+				<id>35777e12-dc4a-43ee-b1f18ce4588848b7</id>
+				<especie>Convencionais</especie>
+				<tipo>IAC</tipo>
+				<tipo_descr>Carta de aproximação por instrumentos</tipo_descr>
+				<nome><![CDATA[RNP W RWY 33]]></nome>
+				<IcaoCode>SBGL</IcaoCode>
+				<dt>2026-01-22</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=35777e12-dc4a-43ee-b1f18ce4588848b7&amp;apikey=1234567890]]></link>
+				<arquivo>sbgl_rnp-w-rwy-33_iac_20260122</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>GL04A</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=df682c23-820d-4286-8e081a3c8236f340&t=GL04A]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2025-12-15</dtPublic>
+				<amdt>2601A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>df682c23-820d-4286-8e081a3c8236f340</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+			<item id="e0d1c9f2-6564-4465-8f57eb1708fa53f1">
+				<id>e0d1c9f2-6564-4465-8f57eb1708fa53f1</id>
+				<especie>Convencionais</especie>
+				<tipo>IAC</tipo>
+				<tipo_descr>Carta de aproximação por instrumentos</tipo_descr>
+				<nome><![CDATA[RNP Y RWY 28]]></nome>
+				<IcaoCode>SBGL</IcaoCode>
+				<dt>2026-01-22</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=e0d1c9f2-6564-4465-8f57eb1708fa53f1&amp;apikey=1234567890]]></link>
+				<arquivo>sbgl_rnp-y-rwy-28_iac_20260122</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>GL00R</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=4e398d0e-2c77-4c6a-b82424908d4b1c8b&t=GL00R]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2025-12-15</dtPublic>
+				<amdt>2601A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>4e398d0e-2c77-4c6a-b82424908d4b1c8b</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+			<item id="3b26dcca-32bf-42cd-8a864bca705fae51">
+				<id>3b26dcca-32bf-42cd-8a864bca705fae51</id>
+				<especie>Convencionais</especie>
+				<tipo>SID</tipo>
+				<tipo_descr>Carta de Saída Padrão por Instrumentos</tipo_descr>
+				<nome><![CDATA[RNAV UGTIX 1B RWY 35R / 35L]]></nome>
+				<IcaoCode>SBSP</IcaoCode>
+				<dt>2026-10-01</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=3b26dcca-32bf-42cd-8a864bca705fae51&amp;apikey=1234567890]]></link>
+				<arquivo>sbsp_rnav-ugtix-1b-rwy-35r---35l_sid_20261001</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>SP02F</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=dff1e7e7-ec77-40eb-959f22f63f97c338&t=SP02F]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2026-08-20</dtPublic>
+				<amdt>2610A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>dff1e7e7-ec77-40eb-959f22f63f97c338</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+			<item id="ef62038a-592d-4f4b-b7e614d2eda2ac71">
+				<id>ef62038a-592d-4f4b-b7e614d2eda2ac71</id>
+				<especie>Convencionais</especie>
+				<tipo>SID</tipo>
+				<tipo_descr>Carta de Saída Padrão por Instrumentos</tipo_descr>
+				<nome><![CDATA[RNAV UGTIX 2A RWY 17R/17L]]></nome>
+				<IcaoCode>SBSP</IcaoCode>
+				<dt>2026-10-01</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=ef62038a-592d-4f4b-b7e614d2eda2ac71&amp;apikey=1234567890]]></link>
+				<arquivo>sbsp_rnav-ugtix-2a-rwy-17r-17l_sid_20261001</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>SP02E</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=8c83680e-d3e9-424d-a3f281dd78ce4349&t=SP02E]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2026-08-20</dtPublic>
+				<amdt>2610A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>8c83680e-d3e9-424d-a3f281dd78ce4349</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+			<item id="f346333b-ac8f-4953-984bc817669e6341">
+				<id>f346333b-ac8f-4953-984bc817669e6341</id>
+				<especie>Convencionais</especie>
+				<tipo>SID</tipo>
+				<tipo_descr>Carta de Saída Padrão por Instrumentos</tipo_descr>
+				<nome><![CDATA[RNAV BUTRU 1A]]></nome>
+				<IcaoCode>SBEN</IcaoCode>
+				<dt>2026-08-06</dt>
+				<link><![CDATA[https://aisweb.decea.gov.br/download/?arquivo=f346333b-ac8f-4953-984bc817669e6341&amp;apikey=1234567890]]></link>
+				<arquivo>sben_rnav-butru-1a_sid_20260806</arquivo>
+				<kmz/>
+				<aviso/>
+				<icp>EN00A</icp>
+				<pe>0</pe>
+				<notam/>
+				<tabcode><![CDATA[https://aisweb.decea.mil.br/download/?tabela=68f1405a-b1b2-45ac-9a5482c49e6a8d24&t=EN00A]]></tabcode>
+				<suplementos count="0">
+				
+				</suplementos>
+				<dtPublic>2026-06-27</dtPublic>
+				<amdt>2608A1</amdt>
+				<use>Ostensivo</use>
+				<metadados>68f1405a-b1b2-45ac-9a5482c49e6a8d24</metadados>
+				<madeInArcgis>false</madeInArcgis>
+            </item>
+    </cartas>
+    </aisweb>
