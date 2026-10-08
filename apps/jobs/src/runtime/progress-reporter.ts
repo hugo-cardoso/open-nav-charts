@@ -3,9 +3,11 @@
  * sem consultar o banco.
  */
 export interface ProgressReporter {
-  jobStarted(totalAirports: number, totalPages: number, concurrency: number): void;
-  pageStarted(page: number, totalPages: number): void;
-  pageFinished(page: number, totalPages: number, durationMs: number): void;
+  jobStarted(concurrency: number): void;
+  /** Catálogo e lote de cartas lidos da fonte. */
+  sourceLoaded(airports: number, charts: number): void;
+  /** Resultado do planejamento: quantos entram na fila e quantos ficam como estão. */
+  planned(toProcess: number, unchanged: number): void;
   airportSucceeded(icao: string, name: string, chartCount: number): void;
   airportRetrying(icao: string, attempt: number, maxAttempts: number, reason: string): void;
   airportFailed(icao: string, reason: string): void;
@@ -27,20 +29,18 @@ export class ConsoleProgressReporter implements ProgressReporter {
     this.writer = writer;
   }
 
-  jobStarted(totalAirports: number, totalPages: number, concurrency: number): void {
+  jobStarted(concurrency: number): void {
     this.writer.write(
-      `${PREFIX} Iniciando. ${totalAirports} aeródromos em ${totalPages} páginas, ${concurrency} simultâneos.`,
+      `${PREFIX} Iniciando, ${concurrency} simultâneos. Lendo catálogo, cartas, base e bucket.`,
     );
   }
 
-  pageStarted(page: number, totalPages: number): void {
-    this.writer.write(`${PREFIX} Página ${page}/${totalPages} iniciada.`);
+  sourceLoaded(airports: number, charts: number): void {
+    this.writer.write(`${PREFIX} Fonte lida: ${airports} aeródromos, ${charts} cartas IFR.`);
   }
 
-  pageFinished(page: number, totalPages: number, durationMs: number): void {
-    this.writer.write(
-      `${PREFIX} Página ${page}/${totalPages} concluída em ${Math.round(durationMs / 1000)}s.`,
-    );
+  planned(toProcess: number, unchanged: number): void {
+    this.writer.write(`${PREFIX} ${toProcess} aeródromos a processar, ${unchanged} inalterados.`);
   }
 
   airportSucceeded(icao: string, name: string, chartCount: number): void {

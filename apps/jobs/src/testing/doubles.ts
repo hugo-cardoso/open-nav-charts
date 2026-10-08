@@ -1,8 +1,21 @@
-import type { AirportDetails, AisWebClient, ChartSummary } from "@open-nav-charts/aisweb-client";
 import type {
+  AirportCatalogEntry,
+  AirportCatalogPage,
+  AirportDetails,
+  AisWebClient,
+  ChartSummary,
+  IfrChartCatalog,
+} from "@open-nav-charts/aisweb-client";
+import type {
+  AirportSnapshot,
+  AirportSnapshotRepository,
   AirportSyncInput,
   AirportSyncRepository,
   AirportSyncResult,
+  RunwaysCheckOf,
+  SourceSyncState,
+  SourceSyncStateRepository,
+  SourceSyncValue,
 } from "@open-nav-charts/domain";
 import { assertPdfContent, type ChartStorage } from "@open-nav-charts/object-storage";
 import type { ProgressReporter } from "../runtime/progress-reporter.js";
@@ -13,77 +26,123 @@ import type { ProgressReporter } from "../runtime/progress-reporter.js";
  */
 
 export interface FakeAisWebOptions {
-  readonly icaosByPage?: readonly (readonly string[])[];
-  readonly total?: number;
   readonly airports?: Readonly<Record<string, AirportDetails | (() => AirportDetails)>>;
   readonly charts?: Readonly<
     Record<string, readonly ChartSummary[] | (() => readonly ChartSummary[])>
   >;
   readonly documents?: Readonly<Record<string, Uint8Array | (() => Uint8Array)>>;
+  /** Catálogo em lote; sem ele, derivado de `airports`. */
+  readonly catalog?: readonly AirportCatalogEntry[] | (() => readonly AirportCatalogEntry[]);
+  /** Lote de cartas IFR; sem ele, derivado de `charts`. */
+  readonly chartCatalog?: IfrChartCatalog | (() => IfrChartCatalog);
+  /**
+   * Atraso artificial de cada requisição à fonte. Com `0` as requisições já se
+   * sobrepõem no laço de eventos, o que basta para medir o pico em voo.
+   */
+  readonly delayMs?: number | ((operation: string) => number);
 }
 
 export class FakeAisWebClient implements AisWebClient {
   readonly fetchedAirports: string[] = [];
-  readonly fetchedCharts: string[] = [];
   readonly downloadedCharts: string[] = [];
+  readonly catalogRequests: Array<{ offset: number; limit: number }> = [];
+  chartCatalogRequests = 0;
+  /** Maior número de requisições à fonte em voo ao mesmo tempo. */
+  peakInFlight = 0;
+  private inFlight = 0;
   private readonly options: FakeAisWebOptions;
 
   constructor(options: FakeAisWebOptions = {}) {
     this.options = options;
   }
 
-  async countAirports(): Promise<number> {
-    if (this.options.total !== undefined) {
-      return this.options.total;
-    }
-    return (this.options.icaosByPage ?? []).reduce((sum, page) => sum + page.length, 0);
+  async listAirports(offset: number, limit: number): Promise<AirportCatalogPage> {
+    return this.request("catalog", () => {
+      this.catalogRequests.push({ offset, limit });
+      const catalog = this.catalogEntries();
+      return {
+        total: catalog.length,
+        entries: catalog.slice(offset, offset + limit),
+        rejected: [],
+      };
+    });
   }
 
-  async listAirportIcaos(offset: number, limit: number): Promise<readonly string[]> {
-    const pages = this.options.icaosByPage ?? [];
-    const index = Math.floor(offset / limit);
-    return pages[index] ?? [];
+  async fetchIfrChartCatalog(): Promise<IfrChartCatalog> {
+    return this.request("charts", () => {
+      this.chartCatalogRequests += 1;
+      const configured = this.options.chartCatalog;
+      if (configured !== undefined) {
+        return typeof configured === "function" ? configured() : configured;
+      }
+      const charts = Object.values(this.options.charts ?? {}).flatMap((entry) =>
+        typeof entry === "function" ? entry() : entry,
+      );
+      return { lastUpdate: "2026-09-30 17:35:34", airacCycle: "2026-10-01", charts };
+    });
+  }
+
+  private catalogEntries(): readonly AirportCatalogEntry[] {
+    const configured = this.options.catalog;
+    if (configured !== undefined) {
+      return typeof configured === "function" ? configured() : configured;
+    }
+    return Object.keys(this.options.airports ?? {}).map((icao) => catalogEntry({ icao }));
+  }
+
+  private async request<T>(operation: string, produce: () => T): Promise<T> {
+    this.inFlight += 1;
+    this.peakInFlight = Math.max(this.peakInFlight, this.inFlight);
+    try {
+      const delay = this.options.delayMs;
+      const milliseconds = typeof delay === "function" ? delay(operation) : (delay ?? 0);
+      await new Promise((resolve) => setTimeout(resolve, milliseconds));
+      return produce();
+    } finally {
+      this.inFlight -= 1;
+    }
   }
 
   async fetchAirport(icao: string): Promise<AirportDetails> {
-    this.fetchedAirports.push(icao);
-    const entry = this.options.airports?.[icao];
-    if (entry === undefined) {
-      return {
-        icao,
-        name: `Aeródromo ${icao}`,
-        city: null,
-        state: null,
-        latitude: null,
-        longitude: null,
-        runways: [],
-      };
-    }
-    return typeof entry === "function" ? entry() : entry;
-  }
-
-  async fetchIfrCharts(icao: string): Promise<readonly ChartSummary[]> {
-    this.fetchedCharts.push(icao);
-    const entry = this.options.charts?.[icao];
-    if (entry === undefined) {
-      return [];
-    }
-    return typeof entry === "function" ? entry() : entry;
+    return this.request("airport", () => {
+      this.fetchedAirports.push(icao);
+      const entry = this.options.airports?.[icao];
+      if (entry === undefined) {
+        return {
+          icao,
+          name: `Aeródromo ${icao}`,
+          city: null,
+          state: null,
+          latitude: null,
+          longitude: null,
+          runways: [],
+        };
+      }
+      return typeof entry === "function" ? entry() : entry;
+    });
   }
 
   async downloadChart(chart: ChartSummary): Promise<Uint8Array> {
-    this.downloadedCharts.push(chart.id);
-    const entry = this.options.documents?.[chart.id];
-    if (entry === undefined) {
-      return pdfBytes();
-    }
-    return typeof entry === "function" ? entry() : entry;
+    return this.request("download", () => {
+      this.downloadedCharts.push(chart.id);
+      const entry = this.options.documents?.[chart.id];
+      if (entry === undefined) {
+        return pdfBytes();
+      }
+      return typeof entry === "function" ? entry() : entry;
+    });
   }
 }
 
-export class FakeAirportSyncRepository implements AirportSyncRepository {
+/**
+ * Base em memória: grava como a transação real e devolve o retrato do que
+ * gravou, para que a execução seguinte de um teste enxergue a anterior.
+ */
+export class FakeAirportSyncRepository implements AirportSyncRepository, AirportSnapshotRepository {
   readonly calls: AirportSyncInput[] = [];
-  private removedIds: readonly string[] = [];
+  readonly markedChecks: RunwaysCheckOf[] = [];
+  private readonly store = new Map<string, AirportSnapshot>();
+  private removedIds: readonly string[] | null = null;
   private _onSync: (() => void) | null = null;
 
   withRemovedIds(ids: readonly string[]): this {
@@ -96,10 +155,80 @@ export class FakeAirportSyncRepository implements AirportSyncRepository {
     return this;
   }
 
+  /** Semeia a base como se uma execução anterior a tivesse gravado. */
+  seed(snapshot: AirportSnapshot): this {
+    this.store.set(snapshot.airport.icao, snapshot);
+    return this;
+  }
+
+  snapshot(icao: string): AirportSnapshot | undefined {
+    return this.store.get(icao);
+  }
+
   async syncAirport(input: AirportSyncInput): Promise<AirportSyncResult> {
     this._onSync?.();
     this.calls.push(input);
-    return { removedProcedureIds: this.removedIds };
+
+    const current = this.store.get(input.airport.icao);
+    const incoming = new Set(input.procedures.map((procedure) => procedure.id));
+    const removed = (current?.procedures ?? [])
+      .map((procedure) => procedure.id)
+      .filter((id) => !incoming.has(id));
+
+    this.store.set(input.airport.icao, {
+      airport: input.airport,
+      procedures: input.procedures,
+      runwaysCheckedAt: input.runwaysCheck?.at ?? current?.runwaysCheckedAt ?? null,
+      sourceUpdatedOn: input.runwaysCheck?.sourceUpdatedOn ?? current?.sourceUpdatedOn ?? null,
+    });
+
+    return { removedProcedureIds: this.removedIds ?? removed };
+  }
+
+  async markRunwaysChecked(checks: readonly RunwaysCheckOf[]): Promise<void> {
+    for (const check of checks) {
+      this.markedChecks.push(check);
+      const current = this.store.get(check.icao);
+      if (current !== undefined) {
+        this.store.set(check.icao, {
+          ...current,
+          runwaysCheckedAt: check.at,
+          sourceUpdatedOn: check.sourceUpdatedOn,
+        });
+      }
+    }
+  }
+
+  async loadAll(): Promise<ReadonlyMap<string, AirportSnapshot>> {
+    return new Map(this.store);
+  }
+}
+
+export class FakeSourceSyncStateRepository implements SourceSyncStateRepository {
+  readonly observations: Array<{ value: SourceSyncValue; at: Date }> = [];
+  private state: SourceSyncState | null = null;
+
+  seed(state: SourceSyncState): this {
+    this.state = state;
+    return this;
+  }
+
+  async find(): Promise<SourceSyncState | null> {
+    return this.state;
+  }
+
+  async observe(source: string, value: SourceSyncValue, at: Date): Promise<SourceSyncState> {
+    this.observations.push({ value, at });
+    const unchanged =
+      this.state !== null &&
+      this.state.lastUpdate === value.lastUpdate &&
+      this.state.airacCycle === value.airacCycle;
+    this.state = {
+      source,
+      ...value,
+      observedAt: unchanged && this.state !== null ? this.state.observedAt : at,
+    };
+    return this.state;
   }
 }
 
@@ -124,8 +253,17 @@ export class FakeChartStorage implements ChartStorage {
     return `${icao.toUpperCase()}/${procedureId}.pdf`;
   }
 
+  existsCalls = 0;
+  listKeysCalls = 0;
+
   async exists(key: string): Promise<boolean> {
+    this.existsCalls += 1;
     return this.objects.has(key);
+  }
+
+  async listKeys(): Promise<ReadonlySet<string>> {
+    this.listKeysCalls += 1;
+    return new Set(this.objects.keys());
   }
 
   async put(key: string, content: Uint8Array): Promise<void> {
@@ -152,16 +290,16 @@ export class FakeChartStorage implements ChartStorage {
 export class RecordingProgressReporter implements ProgressReporter {
   readonly lines: string[] = [];
 
-  jobStarted(totalAirports: number, totalPages: number, concurrency: number): void {
-    this.lines.push(`start ${totalAirports} ${totalPages} ${concurrency}`);
+  jobStarted(concurrency: number): void {
+    this.lines.push(`start ${concurrency}`);
   }
 
-  pageStarted(page: number, totalPages: number): void {
-    this.lines.push(`page-start ${page}/${totalPages}`);
+  sourceLoaded(airports: number, charts: number): void {
+    this.lines.push(`source ${airports} ${charts}`);
   }
 
-  pageFinished(page: number, totalPages: number, durationMs: number): void {
-    this.lines.push(`page-end ${page}/${totalPages} ${durationMs}`);
+  planned(toProcess: number, unchanged: number): void {
+    this.lines.push(`planned ${toProcess} ${unchanged}`);
   }
 
   airportSucceeded(icao: string, name: string, chartCount: number): void {
@@ -210,6 +348,20 @@ export function airportDetails(
     latitude: -22.81,
     longitude: -43.250556,
     runways: [],
+    ...overrides,
+  };
+}
+
+export function catalogEntry(
+  overrides: Partial<AirportCatalogEntry> & Pick<AirportCatalogEntry, "icao">,
+): AirportCatalogEntry {
+  return {
+    name: `Aeródromo ${overrides.icao}`,
+    city: "Cidade",
+    state: "RJ",
+    latitude: -22.81,
+    longitude: -43.250556,
+    updatedOn: "2026-01-01",
     ...overrides,
   };
 }

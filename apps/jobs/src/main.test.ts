@@ -17,7 +17,7 @@ describe("buildProgram", () => {
     expect(commands).toContain("decea-crawler");
   });
 
-  it("declara as cinco opções da rotina com os padrões da spec", () => {
+  it("declara as opções da rotina com os padrões da spec", () => {
     const crawler = buildProgram().commands.find((command) => command.name() === "decea-crawler");
     const flags = crawler?.options.map((option) => option.long) ?? [];
 
@@ -27,9 +27,12 @@ describe("buildProgram", () => {
       "--max-attempts",
       "--skip-documents",
       "--only",
+      "--force",
+      "--revalidation-days",
+      "--revalidation-budget",
     ]);
     expect(crawler?.options.find((option) => option.long === "--page-size")?.defaultValue).toBe(
-      100,
+      5000,
     );
     expect(crawler?.options.find((option) => option.long === "--concurrency")?.defaultValue).toBe(
       4,
@@ -37,6 +40,13 @@ describe("buildProgram", () => {
     expect(crawler?.options.find((option) => option.long === "--max-attempts")?.defaultValue).toBe(
       3,
     );
+    expect(crawler?.options.find((option) => option.long === "--force")?.defaultValue).toBe(false);
+    expect(
+      crawler?.options.find((option) => option.long === "--revalidation-days")?.defaultValue,
+    ).toBe(7);
+    expect(
+      crawler?.options.find((option) => option.long === "--revalidation-budget")?.defaultValue,
+    ).toBe(1000);
   });
 
   it("cada subcomando conhece o próprio nome, que é o que o host despacha", () => {
@@ -66,12 +76,17 @@ describe("buildProgram", () => {
       expect(parseOption("--concurrency", "8")).toBe(8);
       expect(parseOption("--page-size", "50")).toBe(50);
       expect(parseOption("--max-attempts", "5")).toBe(5);
+      expect(parseOption("--revalidation-days", "14")).toBe(14);
+      expect(parseOption("--revalidation-budget", "500")).toBe(500);
     });
 
     it("rejeita zero, negativo e não inteiro", () => {
       for (const invalid of ["0", "-1", "1.5", "abc", ""]) {
         expect(() => parseOption("--concurrency", invalid)).toThrow(
           /--concurrency deve ser um inteiro maior que zero/,
+        );
+        expect(() => parseOption("--revalidation-budget", invalid)).toThrow(
+          /--revalidation-budget deve ser um inteiro maior que zero/,
         );
       }
     });
