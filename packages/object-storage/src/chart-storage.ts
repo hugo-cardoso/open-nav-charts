@@ -6,6 +6,11 @@ export interface ChartStorage {
   put(key: string, content: Uint8Array): Promise<void>;
   delete(key: string): Promise<void>;
   /**
+   * Todas as chaves do bucket numa leitura paginada. Uma execução da coleta
+   * lista uma vez em vez de verificar a existência carta a carta.
+   */
+  listKeys(): Promise<ReadonlySet<string>>;
+  /**
    * URL de leitura assinada e temporária. A assinatura é local — nenhuma ida à
    * rede, e nenhum byte do objeto atravessa quem chama.
    */

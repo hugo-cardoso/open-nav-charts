@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
@@ -59,6 +60,26 @@ export class S3ChartStorage implements ChartStorage {
 
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async listKeys(): Promise<ReadonlySet<string>> {
+    const keys = new Set<string>();
+    let continuationToken: string | undefined;
+
+    // `ListObjectsV2` devolve no máximo 1.000 chaves por resposta.
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({ Bucket: this.bucket, ContinuationToken: continuationToken }),
+      );
+      for (const object of page.Contents ?? []) {
+        if (object.Key !== undefined) {
+          keys.add(object.Key);
+        }
+      }
+      continuationToken = page.IsTruncated === true ? page.NextContinuationToken : undefined;
+    } while (continuationToken !== undefined);
+
+    return keys;
   }
 
   /**
